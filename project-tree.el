@@ -52,29 +52,28 @@
 (defun project-tree-open ()
   (interactive)
   (let ((proj-tree-hierarchy (project-tree--from-known-projects)))
-    (switch-to-buffer
-     (hierarchy-tabulated-display
-      proj-tree-hierarchy
-      (hierarchy-labelfn-indent
-       (hierarchy-labelfn-button
-        ;; labelfn
-        (lambda (path indent)
-          (let ((file-name (file-name-nondirectory path)))
-            (if (file-directory-p path)
-                (insert (propertize file-name 'face '(dired-directory)))
-              (insert (propertize file-name 'face '(default))))))
-        ;; actionfn
-        (lambda (path indent)
-          (when (not (file-directory-p path))
-            (message "Opening %s ..." path)
-            (find-file-other-window path)))))
-      (get-buffer-create "*filetree*")))))
+    (hierarchy-tabulated-display
+     proj-tree-hierarchy
+     (hierarchy-labelfn-indent
+      (hierarchy-labelfn-button
+       ;; labelfn
+       (lambda (path indent)
+         (let ((file-name (file-name-nondirectory path)))
+           (if (file-directory-p path)
+               (insert (propertize file-name 'face '(dired-directory)))
+             (insert (propertize file-name 'face '(default))))))
+       ;; actionfn
+       (lambda (path indent)
+         (when (not (file-directory-p path))
+           (message "Opening %s ..." path)
+           (find-file-other-window path)))))
+     (project-tree--get-filetree-buffer))))
 
 (defun project-tree--get-filetree-buffer ()
-  (let ((buf (get-buffer-create "*filetree*"))
-        (display-buffer-in-side-window buf '((side . left) (window-width . 0.2)))
-        (set-window-dedicated-p (get-buffer-window buf))
-        buf)))
+  (let ((buf (get-buffer-create "*filetree*")))
+    (display-buffer-in-side-window buf '((side . left) (window-width . 0.3)))
+    (set-window-dedicated-p (get-buffer-window buf) t)
+    buf))
 
 ;; (defun project-tree-open (dir)
 ;;   (let* ((h (hierarchy-new))
