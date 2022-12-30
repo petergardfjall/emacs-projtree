@@ -71,8 +71,12 @@
 
 (defun project-tree--get-filetree-buffer ()
   (let ((buf (get-buffer-create "*filetree*")))
-    (display-buffer-in-side-window buf '((side . left) (window-width . 0.3)))
-    (set-window-dedicated-p (get-buffer-window buf) t)
+    (display-buffer-in-side-window buf '((side . left) (window-width . 0.3) (dedicated . t)))
+    (let ((win (get-buffer-window buf)))
+      ;; Make window dedicated to filetree buffer.
+      (set-window-dedicated-p win t)
+      ;; Make C-x 1 not close the window.
+      (set-window-parameter win 'no-delete-other-windows t))
     buf))
 
 ;; (defun project-tree-open (dir)
