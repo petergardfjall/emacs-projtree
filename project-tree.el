@@ -42,7 +42,7 @@
 (defun project-tree--build (folders)
   (let ((h (hierarchy-new)))
     (dolist (folder folders)
-      (let ((dir (expand-file-name folder)))
+      (let ((dir (string-trim-right (expand-file-name folder) "/")))
         (hierarchy-add-tree h dir nil #'project-tree--childrenfn)))
     h))
 
