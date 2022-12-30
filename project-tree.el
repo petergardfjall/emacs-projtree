@@ -13,12 +13,6 @@
 ;; TODO: method: file-parent
 ;; TODO: method: file-toggle-expanded: (note: propagate upwards tree)
 
-;; TODO intercept window changes, like `switch-to-buffer' to expand the tree
-;; (defun on-window-change ()
-;;   (let ((active-buf (current-buffer)))
-;;     (message "current buffer is %s, visiting file %s." (buffer-name active-buf) (buffer-file-name active-buf))))
-;; (add-hook 'window-configuration-change-hook #'on-window-change)
-
 ;; (create-file :path "~/dev/git/gitdrive" :expanded t)
 
 ;; options:
@@ -33,6 +27,7 @@
 
 
 (defun project-tree--childrenfn (folder)
+  ;; TODO (and (file-directory-p folder) (project-tree--expanded-p folder))
   (if (file-directory-p folder)
       (progn
         (message "directory: %s" folder)
@@ -42,15 +37,26 @@
 (defun project-tree--build (folders)
   (let ((h (hierarchy-new)))
     (dolist (folder folders)
-      (let ((dir (string-trim-right (expand-file-name folder) "/")))
-        (hierarchy-add-tree h dir nil #'project-tree--childrenfn)))
+      (let ((root (string-trim-right (expand-file-name folder) "/")))
+        ;; TODO (project-tree--expand root)
+        (hierarchy-add-tree h root nil #'project-tree--childrenfn)))
     h))
 
 (defun project-tree--from-known-projects ()
   (project-tree--build (project-known-project-roots)))
 
+;; TODO `project-tree-follow-mode': intercept window changes, like
+;; `switch-to-buffer' to (1) mark the file and all parent directories expanded,
+;; (2) render the project tree.
+;; (defun on-window-change ()
+;;   (let ((active-buf (current-buffer)))
+;;     (message "current buffer is %s, visiting file %s." (buffer-name active-buf) (buffer-file-name active-buf))))
+;; (add-hook 'window-configuration-change-hook #'on-window-change)
+
+
 (defun project-tree-open ()
   (interactive)
+  ;; TODO only draw project tree from (cdr (project-current))?
   (let ((proj-tree-hierarchy (project-tree--from-known-projects)))
     (hierarchy-tabulated-display
      proj-tree-hierarchy
@@ -64,6 +70,7 @@
              (insert (propertize file-name 'face '(default))))))
        ;; actionfn
        (lambda (path indent)
+         ;; TODO for directories: (project-tree--expand folder)
          (when (not (file-directory-p path))
            (message "Opening %s ..." path)
            (find-file-other-window path)))))
@@ -71,7 +78,7 @@
 
 (defun project-tree--get-filetree-buffer ()
   (let ((buf (get-buffer-create "*filetree*")))
-    (display-buffer-in-side-window buf '((side . left) (window-width . 0.3) (dedicated . t)))
+    (display-buffer-in-side-window buf '((side . left) (window-width . 30) (dedicated . t)))
     (let ((win (get-buffer-window buf)))
       ;; Make window dedicated to filetree buffer.
       (set-window-dedicated-p win t)
@@ -79,28 +86,6 @@
       (set-window-parameter win 'no-delete-other-windows t))
     buf))
 
-;; (defun project-tree-open (dir)
-;;   (let* ((h (hierarchy-new))
-;;          (root-folder (expand-file-name dir))
-;;          (childrenfn (lambda (it)
-;;                        (message "it: %s" it)
-;;                        (if (file-directory-p it)
-;;                            (progn
-;;                              ;; TODO list all entry paths
-;;                              (message "directory: %s" it)
-;;                              (directory-files it t "^[^\\.].*$"))
-;;                          (message "file: %s" it)
-;;                          nil))))
-;;     (hierarchy-add-tree h root-folder nil childrenfn)
-;;     (switch-to-buffer (hierarchy-tabulated-display
-;;                        h
-;;                        (hierarchy-labelfn-indent
-;;                         (hierarchy-labelfn-button
-;;                          (lambda (item indent)
-;;                            (insert (file-name-nondirectory item)))
-;;                          (lambda (item indent)
-;;                            (message "You clicked on: %s" item))))
-;;                        (get-buffer-create "*filetree*")))))
 
 ;; (project-tree-open)
 
