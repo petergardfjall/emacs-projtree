@@ -1,11 +1,24 @@
 (require 'hierarchy)
 
 ;; TODO
-(cl-defstruct (file (:constructor create-file)
-                    (:conc-name ))
-  path
-  expanded
-  ignores)
+(cl-defstruct (projtree (:constructor create-file)
+                        (:conc-name ))
+  cursor ;; TODO highlighted item in tree?
+  expanded-paths ;; TODO hashtable of path->bool
+  )
+
+
+(defvar projtree--table (make-hash-table :test 'equal)
+  "A table that stores project trees (`projtree' instances).
+The project trees are keyed on project root path.")
+
+(defvar projtree--expanded-paths (make-hash-table :test 'equal))
+
+(defun projtree--expanded-p (path)
+  (gethash path projtree--expanded-paths))
+
+(defun projtree--toggle-expand (path)
+  (puthash path (not (projtree--expanded-p path)) projtree--expanded-paths))
 
 ;; TODO: method: file-abspath
 ;; TODO: method: file-dir-p
@@ -18,34 +31,34 @@
 ;; options:
 ;; - exclude-patterns
 ;; - buffer
-;; (project-tree-open dir options)
+;; (projtree-open dir options)
 
 
-;; TODO project-tree--build: build a hierarchy with roots taken from
+;; TODO projtree--build: build a hierarchy with roots taken from
 ;; `project-known-project-roots'
 
 
 
-(defun project-tree--childrenfn (folder)
-  ;; TODO (and (file-directory-p folder) (project-tree--expanded-p folder))
-  (if (file-directory-p folder)
+(defun projtree--childrenfn (folder)
+  (message "children for %s ..." folder)
+  (if (and (file-directory-p folder) (projtree--expanded-p folder))
       (progn
-        (message "directory: %s" folder)
+        (message "getting children for expanded folder %s ..." folder)
         (directory-files folder t "^[^\\.].*$"))
     nil))
 
-(defun project-tree--build (folders)
+(defun projtree--build (folders)
   (let ((h (hierarchy-new)))
     (dolist (folder folders)
       (let ((root (string-trim-right (expand-file-name folder) "/")))
-        ;; TODO (project-tree--expand root)
-        (hierarchy-add-tree h root nil #'project-tree--childrenfn)))
+        ;; TODO (projtree--expand root)
+        (hierarchy-add-tree h root nil #'projtree--childrenfn)))
     h))
 
-(defun project-tree--from-known-projects ()
-  (project-tree--build (project-known-project-roots)))
+(defun projtree--from-known-projects ()
+  (projtree--build (project-known-project-roots)))
 
-;; TODO `project-tree-follow-mode': intercept window changes, like
+;; TODO `projtree-follow-mode': intercept window changes, like
 ;; `switch-to-buffer' to (1) mark the file and all parent directories expanded,
 ;; (2) render the project tree.
 ;; (defun on-window-change ()
@@ -54,10 +67,12 @@
 ;; (add-hook 'window-configuration-change-hook #'on-window-change)
 
 
-(defun project-tree-open ()
+(defun projtree-open ()
+  "Render the project tree."
   (interactive)
   ;; TODO only draw project tree from (cdr (project-current))?
-  (let ((proj-tree-hierarchy (project-tree--from-known-projects)))
+  (message "projtree-open ...")
+  (let ((proj-tree-hierarchy (projtree--from-known-projects)))
     (hierarchy-tabulated-display
      proj-tree-hierarchy
      (hierarchy-labelfn-indent
@@ -70,13 +85,15 @@
              (insert (propertize file-name 'face '(default))))))
        ;; actionfn
        (lambda (path indent)
-         ;; TODO for directories: (project-tree--expand folder)
-         (when (not (file-directory-p path))
+         (if (file-directory-p path)
+             (progn
+               (projtree--toggle-expand path)
+               (projtree-open))
            (message "Opening %s ..." path)
            (find-file-other-window path)))))
-     (project-tree--get-filetree-buffer))))
+     (projtree--get-filetree-buffer))))
 
-(defun project-tree--get-filetree-buffer ()
+(defun projtree--get-filetree-buffer ()
   (let ((buf (get-buffer-create "*filetree*")))
     (display-buffer-in-side-window buf '((side . left) (window-width . 30) (dedicated . t)))
     (let ((win (get-buffer-window buf)))
@@ -87,8 +104,8 @@
     buf))
 
 
-;; (project-tree-open)
+;; (projtree-open)
 
 ;;;
-;;; (provide: 'project-tree)
-;;; project-tree.el ends here.
+;;; (provide: 'projtree)
+;;; projtree.el ends here.
