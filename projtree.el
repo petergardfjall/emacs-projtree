@@ -78,7 +78,9 @@ The project trees are keyed on project root path.")
 ;; (add-hook 'window-configuration-change-hook #'on-window-change)
 
 
-;; TODO split into projtree-jump and projtree-render(project selected-path)?
+;; TODO split into projtree-{jump,open} and projtree-render(project
+;; selected-path)? (selected-path can be used to place cursor at a certain
+;; point/line in buffer)
 
 (defun projtree-open ()
   "Render the project tree."
@@ -103,13 +105,18 @@ The project trees are keyed on project root path.")
                (projtree-open))
            (message "Opening %s ..." path)
            (find-file-other-window path)))))
-     (projtree--get-filetree-buffer))))
+     (projtree--get-projtree-buffer))))
+;; TODO highlight selected line in projtree using `tabulated-list-entries'
+;; calculate value to set point at from the `selected-path'.
+;; (with-current-buffer (get-buffer "*projtree*")
+;;   (dolist (it tabulated-list-entries)
+;;     (message "%s" (car it))))
 
-(defun projtree--get-filetree-buffer ()
-  (let ((buf (get-buffer-create "*filetree*")))
+(defun projtree--get-projtree-buffer ()
+  (let ((buf (get-buffer-create "*projtree*")))
     (display-buffer-in-side-window buf '((side . left) (window-width . 30) (dedicated . t)))
     (let ((win (get-buffer-window buf)))
-      ;; Make window dedicated to filetree buffer.
+      ;; Make window dedicated to projtree buffer.
       (set-window-dedicated-p win t)
       ;; Make C-x 1 not close the window.
       (set-window-parameter win 'no-delete-other-windows t))
