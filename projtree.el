@@ -43,6 +43,10 @@ The project trees are keyed on project root path.")
 ;; TODO projtree--build: build a hierarchy with roots taken from
 ;; `project-known-project-roots'
 
+(defun projtree--expand-status-symbol (path)
+  (if (projtree--expanded-p path)
+      "-"
+    "+"))
 
 
 (defun projtree--childrenfn (folder)
@@ -62,7 +66,7 @@ The project trees are keyed on project root path.")
   (projtree--build (project-known-project-roots)))
 
 (defun projtree--from-current-project ()
-  (let ((proj-current (cdr (project-current))))
+  (let ((proj-current (project-root (project-current))))
     (projtree--build (list proj-current))))
 
 ;; TODO `projtree-follow-mode': intercept window changes, like
@@ -74,10 +78,11 @@ The project trees are keyed on project root path.")
 ;; (add-hook 'window-configuration-change-hook #'on-window-change)
 
 
+;; TODO split into projtree-jump and projtree-render(project selected-path)?
+
 (defun projtree-open ()
   "Render the project tree."
   (interactive)
-  ;; TODO only draw project tree from (cdr (project-current))?
   (message "projtree-open ...")
   (let ((proj-tree-hierarchy (projtree--from-current-project)))
     (hierarchy-tabulated-display
@@ -88,7 +93,7 @@ The project trees are keyed on project root path.")
        (lambda (path indent)
          (let ((file-name (file-name-nondirectory path)))
            (if (file-directory-p path)
-               (insert (propertize file-name 'face '(dired-directory)))
+               (insert (propertize (format "%s %s" (projtree--expand-status-symbol path) file-name) 'face '(dired-directory)))
              (insert (propertize file-name 'face '(default))))))
        ;; actionfn
        (lambda (path indent)
