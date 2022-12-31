@@ -14,11 +14,17 @@ The project trees are keyed on project root path.")
 
 (defvar projtree--expanded-paths (make-hash-table :test 'equal))
 
+;; TODO (project-root path)
 (defun projtree--expanded-p (path)
   (gethash path projtree--expanded-paths))
 
+(defun projtree--expand (path)
+  (puthash path t projtree--expanded-paths))
+
 (defun projtree--toggle-expand (path)
   (puthash path (not (projtree--expanded-p path)) projtree--expanded-paths))
+
+
 
 ;; TODO: method: file-abspath
 ;; TODO: method: file-dir-p
@@ -40,23 +46,24 @@ The project trees are keyed on project root path.")
 
 
 (defun projtree--childrenfn (folder)
-  (message "children for %s ..." folder)
   (if (and (file-directory-p folder) (projtree--expanded-p folder))
-      (progn
-        (message "getting children for expanded folder %s ..." folder)
-        (directory-files folder t "^[^\\.].*$"))
+      (directory-files folder t "^[^\\.].*$")
     nil))
 
 (defun projtree--build (folders)
   (let ((h (hierarchy-new)))
     (dolist (folder folders)
       (let ((root (string-trim-right (expand-file-name folder) "/")))
-        ;; TODO (projtree--expand root)
+        (projtree--expand root)
         (hierarchy-add-tree h root nil #'projtree--childrenfn)))
     h))
 
 (defun projtree--from-known-projects ()
   (projtree--build (project-known-project-roots)))
+
+(defun projtree--from-current-project ()
+  (let ((proj-current (cdr (project-current))))
+    (projtree--build (list proj-current))))
 
 ;; TODO `projtree-follow-mode': intercept window changes, like
 ;; `switch-to-buffer' to (1) mark the file and all parent directories expanded,
@@ -72,7 +79,7 @@ The project trees are keyed on project root path.")
   (interactive)
   ;; TODO only draw project tree from (cdr (project-current))?
   (message "projtree-open ...")
-  (let ((proj-tree-hierarchy (projtree--from-known-projects)))
+  (let ((proj-tree-hierarchy (projtree--from-current-project)))
     (hierarchy-tabulated-display
      proj-tree-hierarchy
      (hierarchy-labelfn-indent
