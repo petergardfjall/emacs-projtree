@@ -7,6 +7,13 @@
   expanded-paths ;; TODO hashtable of path->bool
   )
 
+;; TODO
+;; options:
+;; - exclude-patterns
+;; - buffer
+;; (projtree-open dir options)
+
+
 
 (defvar projtree--table (make-hash-table :test 'equal)
   "A table that stores project trees (`projtree' instances).
@@ -16,28 +23,22 @@ The project trees are keyed on project root path.")
 
 ;; TODO (project-root path)
 (defun projtree--expanded-p (path)
-  (gethash path projtree--expanded-paths))
+  (let ((path (projtree--abspath path)))
+    (gethash path projtree--expanded-paths)))
 
-(defun projtree--expand (path)
-  (puthash path t projtree--expanded-paths))
+(defun projtree--expand-path (path)
+  (let ((path (projtree--abspath path)))
+    (puthash path t projtree--expanded-paths)))
+
+(defun projtree--expand-paths (paths)
+  (dolist (p paths)
+    (projtree--expand-path p)))
 
 (defun projtree--toggle-expand (path)
-  (puthash path (not (projtree--expanded-p path)) projtree--expanded-paths))
+  (let ((path (projtree--abspath path)))
+    (puthash path (not (projtree--expanded-p path)) projtree--expanded-paths)))
 
 
-
-;; TODO: method: file-abspath
-;; TODO: method: file-dir-p
-;; TODO: method: file-children (optional: ignores which override file.ignores)
-;; TODO: method: file-parent
-;; TODO: method: file-toggle-expanded: (note: propagate upwards tree)
-
-;; (create-file :path "~/dev/git/gitdrive" :expanded t)
-
-;; options:
-;; - exclude-patterns
-;; - buffer
-;; (projtree-open dir options)
 
 
 ;; TODO projtree--build: build a hierarchy with roots taken from
@@ -58,12 +59,14 @@ The project trees are keyed on project root path.")
   (let ((h (hierarchy-new)))
     (dolist (folder folders)
       (let ((root (string-trim-right (expand-file-name folder) "/")))
-        (projtree--expand root)
+        (projtree--expand-path root)
         (hierarchy-add-tree h root nil #'projtree--childrenfn)))
     h))
 
+
 (defun projtree--from-known-projects ()
   (projtree--build (project-known-project-roots)))
+
 
 (defun projtree--from-current-project ()
   (let ((proj-current (project-root (project-current))))
@@ -82,35 +85,69 @@ The project trees are keyed on project root path.")
 ;; selected-path)? (selected-path can be used to place cursor at a certain
 ;; point/line in buffer)
 
+(defun projtree--descendant-p (ancestor child)
+  (let ((ancestor (projtree--abspath ancestor))
+        (child (projtree--abspath child)))
+    (string-prefix-p ancestor child)))
+
+(defun projtree--ancestor-paths (project path)
+  (let ((project (projtree--abspath project))
+        (path (projtree--abspath path)))
+    (when (not (projtree--descendant-p project path))
+      (error "Path %s is not a sub-directory of %s" path project))
+    (if (not (string-equal project path))
+        (let ((parent (file-name-directory path)))
+          (append (projtree--ancestor-paths project parent) (list path)))
+      (list path))))
+
+
+(defun projtree--display (proj-hierarchy)
+  (hierarchy-tabulated-display
+   proj-hierarchy
+   (hierarchy-labelfn-indent
+    (hierarchy-labelfn-button
+     ;; labelfn
+     (lambda (path indent)
+       (let ((file-name (file-name-nondirectory path)))
+         (if (file-directory-p path)
+             (insert (propertize (format "%s %s" (projtree--expand-status-symbol path) file-name) 'face '(dired-directory)))
+           (insert (propertize file-name 'face '(default))))))
+     ;; actionfn
+     (lambda (path indent)
+       (if (file-directory-p path)
+           (progn
+             (projtree--toggle-expand path)
+             ;; TODO
+             (projtree-open))
+         (message "Opening %s ..." path)
+         (find-file-other-window path)))))
+   (projtree--get-projtree-buffer)))
+
+
+(defun projtree--render (project selected-path)
+  ;; TODO: validate that project is a prefix of selected-path.
+  (message "Opening project %s (selected path: %s)" project selected-path)
+  (when selected-path
+    (projtree--expand-paths (projtree--ancestor-paths project selected-path)))
+  ;; create and display hierarchy rooted at project
+  (let ((proj-hierarchy (projtree--build (list project))))
+    (projtree--display proj-hierarchy)))
+
+
 (defun projtree-open ()
-  "Render the project tree."
+  "Render a project tree rooted at the current project with the
+currently visited project file (if any) highlighted."
   (interactive)
   (message "projtree-open ...")
-  (let ((proj-tree-hierarchy (projtree--from-current-project)))
-    (hierarchy-tabulated-display
-     proj-tree-hierarchy
-     (hierarchy-labelfn-indent
-      (hierarchy-labelfn-button
-       ;; labelfn
-       (lambda (path indent)
-         (let ((file-name (file-name-nondirectory path)))
-           (if (file-directory-p path)
-               (insert (propertize (format "%s %s" (projtree--expand-status-symbol path) file-name) 'face '(dired-directory)))
-             (insert (propertize file-name 'face '(default))))))
-       ;; actionfn
-       (lambda (path indent)
-         (if (file-directory-p path)
-             (progn
-               (projtree--toggle-expand path)
-               (projtree-open))
-           (message "Opening %s ..." path)
-           (find-file-other-window path)))))
-     (projtree--get-projtree-buffer))))
+  (let ((proj (project-root (project-current)))
+        (selected-file (buffer-file-name (current-buffer))))
+    (projtree--render proj selected-file)))
 ;; TODO highlight selected line in projtree using `tabulated-list-entries'
 ;; calculate value to set point at from the `selected-path'.
 ;; (with-current-buffer (get-buffer "*projtree*")
 ;;   (dolist (it tabulated-list-entries)
 ;;     (message "%s" (car it))))
+
 
 (defun projtree--get-projtree-buffer ()
   (let ((buf (get-buffer-create "*projtree*")))
@@ -121,6 +158,11 @@ The project trees are keyed on project root path.")
       ;; Make C-x 1 not close the window.
       (set-window-parameter win 'no-delete-other-windows t))
     buf))
+
+
+(defun projtree--abspath (path)
+  "Return a normalized path (absolute and no trailing slash)."
+  (string-trim-right (expand-file-name path) "/"))
 
 
 ;; (projtree-open)
