@@ -117,7 +117,6 @@ The project trees are keyed on project root path.")
        (if (file-directory-p path)
            (progn
              (projtree--toggle-expand path)
-             ;; TODO
              (projtree-open))
          (message "Opening %s ..." path)
          (find-file-other-window path)))))
