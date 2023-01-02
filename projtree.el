@@ -130,7 +130,26 @@ The project trees are keyed on project root path.")
     (projtree--expand-paths (projtree--ancestor-paths project selected-path)))
   ;; create and display hierarchy rooted at project
   (let ((proj-hierarchy (projtree--build (list project))))
-    (projtree--display proj-hierarchy)))
+    (projtree--display proj-hierarchy))
+
+  ;; highlight selected line in project tree buffer.
+  (when selected-path
+    (with-current-buffer (projtree--get-projtree-buffer)
+      (message "tabulated-list-entries: %s" (mapcar #'car tabulated-list-entries))
+      (let ((selected-linum (cl-position selected-path (mapcar #'car tabulated-list-entries) :test #'equal)))
+        (projtree--highlight-row (+ selected-linum 1))))))
+
+(defun projtree--highlight-row (linum)
+  ;; TODO: create an overlay in the projtree buffer at the given line number.
+  (with-current-buffer (projtree--get-projtree-buffer)
+    (message "Highlighting row %s" linum)
+    (save-excursion
+      (goto-line linum)
+      (let* ((start (line-beginning-position))
+             (end (line-end-position))
+             (hl-overlay (make-overlay start end)))
+        (overlay-put hl-overlay 'face 'highlight)
+      ))))
 
 
 (defun projtree-open ()
@@ -139,13 +158,9 @@ currently visited project file (if any) highlighted."
   (interactive)
   (message "projtree-open ...")
   (let ((proj (project-root (project-current)))
+        ;; TODO determine selected-file with timer or hook
         (selected-file (buffer-file-name (current-buffer))))
     (projtree--render proj selected-file)))
-;; TODO highlight selected line in projtree using `tabulated-list-entries'
-;; calculate value to set point at from the `selected-path'.
-;; (with-current-buffer (get-buffer "*projtree*")
-;;   (dolist (it tabulated-list-entries)
-;;     (message "%s" (car it))))
 
 
 (defun projtree--get-projtree-buffer ()
