@@ -102,25 +102,26 @@ The project trees are keyed on project root path.")
 
 
 (defun projtree--display (proj-hierarchy)
-  (hierarchy-tabulated-display
-   proj-hierarchy
-   (hierarchy-labelfn-indent
-    (hierarchy-labelfn-button
-     ;; labelfn
-     (lambda (path indent)
-       (let ((file-name (file-name-nondirectory path)))
+  (let ((buf (projtree--get-projtree-buffer)))
+    (hierarchy-tabulated-display
+     proj-hierarchy
+     (hierarchy-labelfn-indent
+      (hierarchy-labelfn-button
+       ;; labelfn
+       (lambda (path indent)
+         (let ((file-name (file-name-nondirectory path)))
+           (if (file-directory-p path)
+               (insert (propertize (format "%s %s" (projtree--expand-status-symbol path) file-name) 'face '(dired-directory)))
+             (insert (propertize file-name 'face '(default))))))
+       ;; actionfn
+       (lambda (path indent)
          (if (file-directory-p path)
-             (insert (propertize (format "%s %s" (projtree--expand-status-symbol path) file-name) 'face '(dired-directory)))
-           (insert (propertize file-name 'face '(default))))))
-     ;; actionfn
-     (lambda (path indent)
-       (if (file-directory-p path)
-           (progn
-             (projtree--toggle-expand path)
-             (projtree-open))
-         (message "Opening %s ..." path)
-         (find-file-other-window path)))))
-   (projtree--get-projtree-buffer)))
+             (progn
+               (projtree--toggle-expand path)
+               (projtree-open))
+           (message "Opening %s ..." path)
+           (find-file-other-window path)))))
+     buf)))
 
 
 (defun projtree--render (project selected-path)
@@ -131,25 +132,37 @@ The project trees are keyed on project root path.")
   ;; create and display hierarchy rooted at project
   (let ((proj-hierarchy (projtree--build (list project))))
     (projtree--display proj-hierarchy))
-
-  ;; highlight selected line in project tree buffer.
   (when selected-path
-    (with-current-buffer (projtree--get-projtree-buffer)
-      (message "tabulated-list-entries: %s" (mapcar #'car tabulated-list-entries))
-      (let ((selected-linum (cl-position selected-path (mapcar #'car tabulated-list-entries) :test #'equal)))
-        (projtree--highlight-row (+ selected-linum 1))))))
+    (projtree--highlight-file selected-path)))
 
-(defun projtree--highlight-row (linum)
-  ;; TODO: create an overlay in the projtree buffer at the given line number.
+
+(defun projtree--highlight-file (path)
+  "Highlight a certain PATH in the project tree buffer."
   (with-current-buffer (projtree--get-projtree-buffer)
-    (message "Highlighting row %s" linum)
-    (save-excursion
-      (goto-line linum)
-      (let* ((start (line-beginning-position))
-             (end (line-end-position))
-             (hl-overlay (make-overlay start end)))
-        (overlay-put hl-overlay 'face 'highlight)
-      ))))
+    (let ((selected-linum (cl-position path (mapcar #'car tabulated-list-entries) :test #'equal)))
+      (projtree--highlight-row (+ selected-linum 1)))))
+
+
+(defface projtree-highlight
+  '((t :inherit highlight :extend t))
+  "Default face for highlighting the visited file in the project tree."
+  :group 'projtree)
+
+(defvar projtree--hl-overlay nil)
+
+(defun projtree--highlight-row (line-number)
+  "Highlight a certain LINE-NUMBER in the project tree buffer."
+  (with-current-buffer (projtree--get-projtree-buffer)
+    (when projtree--hl-overlay
+      (delete-overlay projtree--hl-overlay))
+    (goto-line line-number)
+    (let* ((start (line-beginning-position))
+           (end (line-end-position))
+           (hl-overlay (make-overlay start (+ 1 end))))
+      ;; TODO: does not extend to EOL
+      (overlay-put hl-overlay 'face 'projtree-highlight)
+      (overlay-put hl-overlay 'before-string (propertize "X" 'display (list 'left-fringe 'right-triangle)))
+      (setq projtree--hl-overlay hl-overlay))))
 
 
 (defun projtree-open ()
