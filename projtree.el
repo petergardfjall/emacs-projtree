@@ -159,15 +159,14 @@ The project trees are keyed on project root path.")
     (let* ((start (line-beginning-position))
            (end (line-end-position))
            (hl-overlay (make-overlay start (+ 1 end))))
-      ;; TODO: does not extend to EOL
       (overlay-put hl-overlay 'face 'projtree-highlight)
       (overlay-put hl-overlay 'before-string (propertize "X" 'display (list 'left-fringe 'right-triangle)))
       (setq projtree--hl-overlay hl-overlay))))
 
 
 (defun projtree-open ()
-  "Render a project tree rooted at the current project with the
-currently visited project file (if any) highlighted."
+  "Render a project tree rooted at the current project.
+The currently visited project file (if any) is highlighted."
   (interactive)
   (message "projtree-open ...")
   (let ((proj (project-root (project-current)))
