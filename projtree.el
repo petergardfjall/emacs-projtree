@@ -169,10 +169,8 @@ The project trees are keyed on project root path.")
 The currently visited project file (if any) is highlighted."
   (interactive)
   (message "projtree-open ...")
-  (let ((proj (project-root (project-current)))
-        ;; TODO determine selected-file with timer or hook
-        (selected-file (buffer-file-name (current-buffer))))
-    (projtree--render proj selected-file)))
+  (let ((proj (project-root (project-current))))
+    (projtree--render proj projtree--selected-path)))
 
 
 (defun projtree--get-projtree-buffer ()
@@ -191,8 +189,29 @@ The currently visited project file (if any) is highlighted."
   (string-trim-right (expand-file-name path) "/"))
 
 
-;; (projtree-open)
+;;
+;; Follow mode.
+;;
 
-;;;
-;;; (provide: 'projtree)
+(defvar projtree--selected-path nil
+  "Tracks the file visited by the current buffer in `projtree-follow-mode'.")
+
+(defun projtree--track-visited-file ()
+  (let ((visited-file (buffer-file-name (current-buffer))))
+    (when visited-file
+      (message "Setting visited file to: %s" visited-file)
+      (setq projtree--selected-path visited-file))))
+
+;;;###autoload
+(define-minor-mode projtree-follow-mode
+  "TODO describe."
+  :lighter nil ;; Do not display on mode-line.
+  (if projtree-follow-mode
+      (add-hook 'window-configuration-change-hook #'projtree--track-visited-file)
+    (remove-hook 'window-configuration-change-hook #'projtree--track-visited-file)
+    (setq projtree--selected-path nil)))
+
+
+(provide 'projtree)
+
 ;;; projtree.el ends here.
