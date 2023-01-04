@@ -1,74 +1,115 @@
+;;; projtree.el --- Display project directory tree of visited file.  -*- lexical-binding: t -*-
 (require 'hierarchy)
 
-;; TODO
-(cl-defstruct (projtree (:constructor create-file)
-                        (:conc-name ))
-  cursor ;; TODO highlighted item in tree?
-  expanded-paths ;; TODO hashtable of path->bool
-  )
+(cl-defstruct projtree-set
+  "A collection of project trees (`projtree' instances).
+The project trees are identified by project root path."
+  trees)
 
-;; TODO
-;; options:
-;; - exclude-patterns
-;; - buffer
-;; (projtree-open dir options)
+(defun projtree-set--new ()
+  "Create an empty `projtree-set'."
+  (make-projtree-set :trees (make-hash-table :test 'equal)))
+
+(defun projtree-set->get-projtree (self project-root)
+  "Get project tree from the projtree-table SELF for the given PROJECT-ROOT.
+If the requested `projtree' does not already exist it is created."
+  (let* ((trees (projtree-set-trees self))
+         (tree (gethash project-root trees)))
+    ;; Add a new project tree if one doesn't exist.
+    (when (not tree)
+      (puthash project-root (projtree->new project-root) trees))
+    (gethash project-root trees)))
+
+
+(defvar projtree--active-set nil
+  "Holds the active `projtree-set'.")
+
+(defun projtree-active-set ()
+  (when (not projtree--active-set)
+    (setq projtree--active-set (projtree-set--new)))
+  projtree--active-set)
 
 
 
-(defvar projtree--table (make-hash-table :test 'equal)
-  "A table that stores project trees (`projtree' instances).
-The project trees are keyed on project root path.")
+(cl-defstruct projtree
+  "TODO"
+  ;; The root directory of the project tree.
+  root
+  ;; Tracks which paths of the project tree are expanded (to be displayed).
+  expanded-paths
+  ;; Tracks which path in the project tree is currently visited (and therefore
+  ;; should be highlighted).
+  ;; TODO: actually make use of this
+  selected-path)
 
-(defvar projtree--expanded-paths (make-hash-table :test 'equal))
+(defun projtree->new (project-root)
+  "Create an empty projtree rooted at directory PROJECT-ROOT."
+  (make-projtree :root project-root
+                 :expanded-paths (make-hash-table :test 'equal)
+                 :selected-path nil))
 
-;; TODO (project-root path)
-(defun projtree--expanded-p (path)
+(defun projtree->root (self)
+  (projtree-root self))
+
+(defun projtree->expanded-p (self path)
   (let ((path (projtree--abspath path)))
-    (gethash path projtree--expanded-paths)))
+    (gethash path (projtree-expanded-paths self))))
 
-(defun projtree--expand-path (path)
+(defun projtree->expand-path (self path)
   (let ((path (projtree--abspath path)))
-    (puthash path t projtree--expanded-paths)))
+    (puthash path t (projtree-expanded-paths self))))
 
-(defun projtree--expand-paths (paths)
+(defun projtree->expand-paths (self paths)
   (dolist (p paths)
-    (projtree--expand-path p)))
+    (projtree->expand-path self p)))
 
+(defun projtree->toggle-expand (self path)
+  (let ((path (projtree--abspath path))
+        (value (not (projtree->expanded-p self path))))
+    (puthash path value (projtree-expanded-paths self))))
 
-(defun projtree--toggle-expand (path)
-  (let ((path (projtree--abspath path)))
-    (puthash path (not (projtree--expanded-p path)) projtree--expanded-paths)))
-
-
-(defun projtree--expand-status-symbol (path)
-  (if (projtree--expanded-p path)
+(defun projtree->expand-status-symbol (self path)
+  (if (projtree->expanded-p self path)
       "-"
     "+"))
 
+(defun projtree->children-func (self)
+  "Return a function for SELF that lists child files for expanded directories."
+  (lambda (folder)
+    (if (and (file-directory-p folder)
+             (projtree->expanded-p self folder))
+        ;; TODO include hidden files but avoid "." and ".."
+        (directory-files folder t "^[^\\.].*$")
+      nil)))
 
-(defun projtree--childrenfn (folder)
-  (if (and (file-directory-p folder) (projtree--expanded-p folder))
-      ;; TODO include hidden files
-      (directory-files folder t "^[^\\.].*$")
-    nil))
+(defun projtree->build-hierarchy (self)
+  (let* ((root-dir (projtree--abspath (projtree->root self)))
+         (childfn (apply-partially #'projtree->children-func self)))
+    ;; TODO maybe move to construction
+    (projtree->expand-path self root-dir)
+    (let ((h (hierarchy-new)))
+      (hierarchy-add-tree h root-dir nil (projtree->children-func self))
+      h)))
+
+;; TODO projtree->open/display (self buffer)
 
 
-(defun projtree--build (folders)
-  (let ((h (hierarchy-new)))
-    (dolist (folder folders)
-      (let ((root (string-trim-right (expand-file-name folder) "/")))
-        (projtree--expand-path root)
-        (hierarchy-add-tree h root nil #'projtree--childrenfn)))
-    h))
+(defun projtree--current ()
+  "Return the project tree rooted at the current/most recently visited file.
+Will return nil if the visited file is not in a project structure."
+  (let ((root (projtree--project-root projtree--visited-buffer)))
+    (if root
+        (projtree-set->get-projtree (projtree-active-set) root)
+      nil)))
 
-
-(defun projtree--from-known-projects ()
-  (projtree--build (project-known-project-roots)))
-
-
-(defun projtree--from-current-project ()
-  (let ((proj-current (project-root (project-current))))
-    (projtree--build (list proj-current))))
+(defun projtree--project-root (buffer)
+  "Return the root project directory of BUFFER or nil if none is available."
+  (with-current-buffer buffer
+    (let* ((buffer-dir default-directory)
+           (project (project-current nil buffer-dir)))
+      (if project
+          (project-root project)
+        nil))))
 
 
 (defun projtree--descendant-p (ancestor child)
@@ -88,8 +129,9 @@ The project trees are keyed on project root path.")
       (list path))))
 
 
-(defun projtree--display (proj-hierarchy)
-  (let ((buf (projtree--get-projtree-buffer)))
+(defun projtree--display (projtree)
+  (let ((proj-hierarchy (projtree->build-hierarchy projtree))
+        (buf (projtree--get-projtree-buffer)))
     (hierarchy-tabulated-display
      proj-hierarchy
      (hierarchy-labelfn-indent
@@ -98,27 +140,27 @@ The project trees are keyed on project root path.")
        (lambda (path indent)
          (let ((file-name (file-name-nondirectory path)))
            (if (file-directory-p path)
-               (insert (propertize (format "%s %s" (projtree--expand-status-symbol path) file-name) 'face '(dired-directory)))
+               (insert (propertize (format "%s %s" (projtree->expand-status-symbol projtree path) file-name) 'face '(dired-directory)))
              (insert (propertize file-name 'face '(default))))))
        ;; actionfn
        (lambda (path indent)
          (if (file-directory-p path)
              (progn
-               (projtree--toggle-expand path)
+               (projtree->toggle-expand projtree path)
                (projtree-open))
            (message "Opening %s ..." path)
            (find-file-other-window path)))))
      buf)))
 
-
-(defun projtree--render (project selected-path)
+;; TODO make selected-path part of projtree
+(defun projtree--render (projtree selected-path)
   ;; TODO: validate that project is a prefix of selected-path.
-  (message "Opening project %s (selected path: %s)" project selected-path)
+  (message "Opening project %s (selected path: %s)" (projtree->root projtree) selected-path)
   (when selected-path
-    (projtree--expand-paths (projtree--ancestor-paths project selected-path)))
-  ;; create and display hierarchy rooted at project
-  (let ((proj-hierarchy (projtree--build (list project))))
-    (projtree--display proj-hierarchy))
+    ;; TODO in project trees table
+    (let ((root (projtree->root projtree)))
+      (projtree->expand-paths projtree (projtree--ancestor-paths root selected-path))))
+  (projtree--display projtree)
   (projtree--clear-highlight)
   (when selected-path
     (projtree--highlight-file selected-path)))
@@ -156,14 +198,18 @@ The project trees are keyed on project root path.")
       (set-window-point (get-buffer-window (current-buffer)) start))))
 
 
+
+
 (defun projtree-open ()
   "Render a project tree rooted at the current project.
 The currently visited project file (if any) is highlighted."
   (interactive)
-  (message "projtree-open ...")
-  (let ((proj (project-root (project-current)))
+  (let ((projtree (projtree--current))
         (selected-file (buffer-file-name projtree--visited-buffer)))
-    (projtree--render proj selected-file)))
+    (when projtree
+      ;; TODO (projtree->render projtree)
+      (projtree--render projtree selected-file))))
+
 
 (defun projtree-close ()
   (interactive)
@@ -205,12 +251,13 @@ The currently visited project file (if any) is highlighted."
   "TODO."
   ;; No need to re-render project tree if we're in the mini-buffer, in the
   ;; project tree buffer, or any other buffer not visiting a file.
-  (when (projtree--file-visiting-buffer-p (current-buffer)))
-    (let ((prior-buffer projtree--visited-buffer)
-          (current-buffer (current-buffer)))
-      (when (not (eq prior-buffer current-buffer))
-        (setq projtree--visited-buffer current-buffer)
-        (projtree-open)))))
+  (let ((curr-buf (current-buffer)))
+    (when (projtree--file-visiting-buffer-p curr-buf)
+      (let ((prior-buffer projtree--visited-buffer))
+        (when (not (eq prior-buffer curr-buf))
+          (setq projtree--visited-buffer curr-buf)
+          (projtree-open))))))
+
 
 ;;;###autoload
 (define-minor-mode projtree-mode
@@ -218,7 +265,7 @@ The currently visited project file (if any) is highlighted."
   :lighter nil ;; Do not display on mode-line.
   (if projtree-mode
       (progn
-        (add-hook 'window-configuration-change-hook #'projtree--render-on-buffer-switch)
+         (add-hook 'window-configuration-change-hook #'projtree--render-on-buffer-switch)
         (setq projtree--visited-buffer (current-buffer))
         (projtree-open))
     (remove-hook 'window-configuration-change-hook #'projtree--render-on-buffer-switch)
