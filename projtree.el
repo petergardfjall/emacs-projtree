@@ -34,15 +34,11 @@ The project trees are keyed on project root path.")
   (dolist (p paths)
     (projtree--expand-path p)))
 
+
 (defun projtree--toggle-expand (path)
   (let ((path (projtree--abspath path)))
     (puthash path (not (projtree--expanded-p path)) projtree--expanded-paths)))
 
-
-
-
-;; TODO projtree--build: build a hierarchy with roots taken from
-;; `project-known-project-roots'
 
 (defun projtree--expand-status-symbol (path)
   (if (projtree--expanded-p path)
@@ -52,8 +48,10 @@ The project trees are keyed on project root path.")
 
 (defun projtree--childrenfn (folder)
   (if (and (file-directory-p folder) (projtree--expanded-p folder))
+      ;; TODO include hidden files
       (directory-files folder t "^[^\\.].*$")
     nil))
+
 
 (defun projtree--build (folders)
   (let ((h (hierarchy-new)))
@@ -72,23 +70,12 @@ The project trees are keyed on project root path.")
   (let ((proj-current (project-root (project-current))))
     (projtree--build (list proj-current))))
 
-;; TODO `projtree-follow-mode': intercept window changes, like
-;; `switch-to-buffer' to (1) mark the file and all parent directories expanded,
-;; (2) render the project tree.
-;; (defun on-window-change ()
-;;   (let ((active-buf (current-buffer)))
-;;     (message "current buffer is %s, visiting file %s." (buffer-name active-buf) (buffer-file-name active-buf))))
-;; (add-hook 'window-configuration-change-hook #'on-window-change)
-
-
-;; TODO split into projtree-{jump,open} and projtree-render(project
-;; selected-path)? (selected-path can be used to place cursor at a certain
-;; point/line in buffer)
 
 (defun projtree--descendant-p (ancestor child)
   (let ((ancestor (projtree--abspath ancestor))
         (child (projtree--abspath child)))
     (string-prefix-p ancestor child)))
+
 
 (defun projtree--ancestor-paths (project path)
   (let ((project (projtree--abspath project))
@@ -132,8 +119,10 @@ The project trees are keyed on project root path.")
   ;; create and display hierarchy rooted at project
   (let ((proj-hierarchy (projtree--build (list project))))
     (projtree--display proj-hierarchy))
+  (projtree--clear-highlight)
   (when selected-path
-    (projtree--highlight-file selected-path)))
+    (projtree--highlight-file selected-path))
+  (recenter))
 
 
 (defun projtree--highlight-file (path)
@@ -150,11 +139,14 @@ The project trees are keyed on project root path.")
 
 (defvar projtree--hl-overlay nil)
 
+(defun projtree--clear-highlight ()
+  (when projtree--hl-overlay
+    (delete-overlay projtree--hl-overlay)))
+
 (defun projtree--highlight-row (line-number)
   "Highlight a certain LINE-NUMBER in the project tree buffer."
   (with-current-buffer (projtree--get-projtree-buffer)
-    (when projtree--hl-overlay
-      (delete-overlay projtree--hl-overlay))
+    (projtree--clear-highlight)
     (goto-line line-number)
     (let* ((start (line-beginning-position))
            (end (line-end-position))
@@ -169,9 +161,15 @@ The project trees are keyed on project root path.")
 The currently visited project file (if any) is highlighted."
   (interactive)
   (message "projtree-open ...")
-  (let ((proj (project-root (project-current))))
-    (projtree--render proj projtree--selected-path)))
+  (let ((proj (project-root (project-current)))
+        (selected-file (buffer-file-name projtree--visited-buffer)))
+    (projtree--render proj selected-file)))
 
+(defun projtree-close ()
+  (interactive)
+  (let ((buf (get-buffer "*projtree*")))
+    (when buf
+      (kill-buffer buf))))
 
 (defun projtree--get-projtree-buffer ()
   (let ((buf (get-buffer-create "*projtree*")))
@@ -189,27 +187,37 @@ The currently visited project file (if any) is highlighted."
   (string-trim-right (expand-file-name path) "/"))
 
 
-;;
-;; Follow mode.
-;;
+(defun projtree--call-async (fn)
+  "Call function FN asynchronously."
+  (run-with-idle-timer 0 nil (funcall fn)))
 
-(defvar projtree--selected-path nil
-  "Tracks the file visited by the current buffer in `projtree-follow-mode'.")
 
-(defun projtree--track-visited-file ()
-  (let ((visited-file (buffer-file-name (current-buffer))))
-    (when visited-file
-      (message "Setting visited file to: %s" visited-file)
-      (setq projtree--selected-path visited-file))))
+(defvar projtree--visited-buffer nil
+  "Tracks the currently visited buffer in `projtree-mode'.")
+
+;; (defvar projtree--selected-path nil
+;;   "Tracks the file visited by the current buffer in `projtree-mode'.")
+
+
+(defun projtree--render-on-buffer-switch ()
+  (when (not (minibufferp (current-buffer)))
+    (let ((prior-buffer projtree--visited-buffer)
+          (current-buffer (current-buffer)))
+      (when (not (eq prior-buffer current-buffer))
+        (setq projtree--visited-buffer current-buffer)
+        (projtree-open)))))
 
 ;;;###autoload
-(define-minor-mode projtree-follow-mode
+(define-minor-mode projtree-mode
   "TODO describe."
   :lighter nil ;; Do not display on mode-line.
-  (if projtree-follow-mode
-      (add-hook 'window-configuration-change-hook #'projtree--track-visited-file)
-    (remove-hook 'window-configuration-change-hook #'projtree--track-visited-file)
-    (setq projtree--selected-path nil)))
+  (if projtree-mode
+      (progn
+        (add-hook 'window-configuration-change-hook #'projtree--render-on-buffer-switch)
+        (setq projtree--visited-buffer (current-buffer))
+        (projtree-open))
+    (remove-hook 'window-configuration-change-hook #'projtree--render-on-buffer-switch)
+    (projtree-close)))
 
 
 (provide 'projtree)
