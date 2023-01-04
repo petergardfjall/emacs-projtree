@@ -121,8 +121,7 @@ The project trees are keyed on project root path.")
     (projtree--display proj-hierarchy))
   (projtree--clear-highlight)
   (when selected-path
-    (projtree--highlight-file selected-path))
-  (recenter))
+    (projtree--highlight-file selected-path)))
 
 
 (defun projtree--highlight-file (path)
@@ -146,14 +145,15 @@ The project trees are keyed on project root path.")
 (defun projtree--highlight-row (line-number)
   "Highlight a certain LINE-NUMBER in the project tree buffer."
   (with-current-buffer (projtree--get-projtree-buffer)
-    (projtree--clear-highlight)
     (goto-line line-number)
     (let* ((start (line-beginning-position))
            (end (line-end-position))
            (hl-overlay (make-overlay start (+ 1 end))))
       (overlay-put hl-overlay 'face 'projtree-highlight)
       (overlay-put hl-overlay 'before-string (propertize "X" 'display (list 'left-fringe 'right-triangle)))
-      (setq projtree--hl-overlay hl-overlay))))
+      (setq projtree--hl-overlay hl-overlay)
+      ;; Move point to highlighted row in in project tree buffer window.
+      (set-window-point (get-buffer-window (current-buffer)) start))))
 
 
 (defun projtree-open ()
@@ -200,7 +200,8 @@ The currently visited project file (if any) is highlighted."
 
 
 (defun projtree--render-on-buffer-switch ()
-  (when (not (minibufferp (current-buffer)))
+  (when (and (not (minibufferp (current-buffer)))
+             (not (string-equal (buffer-name) "*projtree*" )))
     (let ((prior-buffer projtree--visited-buffer)
           (current-buffer (current-buffer)))
       (when (not (eq prior-buffer current-buffer))
