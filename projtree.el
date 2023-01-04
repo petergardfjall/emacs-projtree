@@ -195,13 +195,17 @@ The currently visited project file (if any) is highlighted."
 (defvar projtree--visited-buffer nil
   "Tracks the currently visited buffer in `projtree-mode'.")
 
-;; (defvar projtree--selected-path nil
-;;   "Tracks the file visited by the current buffer in `projtree-mode'.")
+
+(defun projtree--file-visiting-buffer-p (buffer)
+  "Return t for a BUFFER that is visiting a file, nil otherwise."
+  (buffer-file-name buffer))
 
 
 (defun projtree--render-on-buffer-switch ()
-  (when (and (not (minibufferp (current-buffer)))
-             (not (string-equal (buffer-name) "*projtree*" )))
+  "TODO."
+  ;; No need to re-render project tree if we're in the mini-buffer, in the
+  ;; project tree buffer, or any other buffer not visiting a file.
+  (when (projtree--file-visiting-buffer-p (current-buffer)))
     (let ((prior-buffer projtree--visited-buffer)
           (current-buffer (current-buffer)))
       (when (not (eq prior-buffer current-buffer))
