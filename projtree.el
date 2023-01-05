@@ -68,12 +68,37 @@ If the requested `projtree' does not already exist it is created."
         (value (not (projtree->expanded-p self path))))
     (puthash path value (projtree-expanded-paths self))))
 
-(defun projtree->expand-status-symbol (self path)
+(defun projtree->display (self buffer)
+  "Display project tree SELF in the given BUFFER.
+Overwrites any prior BUFFER content."
+  (let ((proj-hierarchy (projtree->_build-hierarchy self)))
+    (hierarchy-tabulated-display
+     proj-hierarchy
+     (hierarchy-labelfn-indent
+      (hierarchy-labelfn-button
+       ;; labelfn
+       (lambda (path indent)
+         (let ((file-name (file-name-nondirectory path)))
+           (if (file-directory-p path)
+               (insert (propertize (format "%s %s" (projtree->_expand-status-symbol self path) file-name) 'face '(dired-directory)))
+             (insert (propertize file-name 'face '(default))))))
+       ;; actionfn
+       (lambda (path indent)
+         (if (file-directory-p path)
+             (progn
+               (projtree->toggle-expand self path)
+               ;; TODO: can we just do (projtree->display self buffer)?
+               (projtree-open))
+           (message "Opening %s ..." path)
+           (find-file-other-window path)))))
+     buffer)))
+
+(defun projtree->_expand-status-symbol (self path)
   (if (projtree->expanded-p self path)
       "-"
     "+"))
 
-(defun projtree->children-func (self)
+(defun projtree->_children-fn (self)
   "Return a function for SELF that lists child files for expanded directories."
   (lambda (folder)
     (if (and (file-directory-p folder)
@@ -82,16 +107,13 @@ If the requested `projtree' does not already exist it is created."
         (directory-files folder t "^[^\\.].*$")
       nil)))
 
-(defun projtree->build-hierarchy (self)
-  (let* ((root-dir (projtree--abspath (projtree->root self)))
-         (childfn (apply-partially #'projtree->children-func self)))
+(defun projtree->_build-hierarchy (self)
+  (let* ((root-dir (projtree--abspath (projtree->root self))))
     ;; TODO maybe move to construction
     (projtree->expand-path self root-dir)
     (let ((h (hierarchy-new)))
-      (hierarchy-add-tree h root-dir nil (projtree->children-func self))
+      (hierarchy-add-tree h root-dir nil (projtree->_children-fn self))
       h)))
-
-;; TODO projtree->open/display (self buffer)
 
 
 (defun projtree--current ()
@@ -129,38 +151,14 @@ Will return nil if the visited file is not in a project structure."
       (list path))))
 
 
-(defun projtree--display (projtree)
-  (let ((proj-hierarchy (projtree->build-hierarchy projtree))
-        (buf (projtree--get-projtree-buffer)))
-    (hierarchy-tabulated-display
-     proj-hierarchy
-     (hierarchy-labelfn-indent
-      (hierarchy-labelfn-button
-       ;; labelfn
-       (lambda (path indent)
-         (let ((file-name (file-name-nondirectory path)))
-           (if (file-directory-p path)
-               (insert (propertize (format "%s %s" (projtree->expand-status-symbol projtree path) file-name) 'face '(dired-directory)))
-             (insert (propertize file-name 'face '(default))))))
-       ;; actionfn
-       (lambda (path indent)
-         (if (file-directory-p path)
-             (progn
-               (projtree->toggle-expand projtree path)
-               (projtree-open))
-           (message "Opening %s ..." path)
-           (find-file-other-window path)))))
-     buf)))
-
-;; TODO make selected-path part of projtree
+;; TODO make selected-path part of projtree?
 (defun projtree--render (projtree selected-path)
-  ;; TODO: validate that project is a prefix of selected-path.
   (message "Opening project %s (selected path: %s)" (projtree->root projtree) selected-path)
   (when selected-path
     ;; TODO in project trees table
     (let ((root (projtree->root projtree)))
       (projtree->expand-paths projtree (projtree--ancestor-paths root selected-path))))
-  (projtree--display projtree)
+  (projtree->display projtree (projtree--get-projtree-buffer))
   (projtree--clear-highlight)
   (when selected-path
     (projtree--highlight-file selected-path)))
@@ -229,7 +227,7 @@ The currently visited project file (if any) is highlighted."
 
 
 (defun projtree--abspath (path)
-  "Return a normalized path (absolute and no trailing slash)."
+  "Return a normalized PATH (absolute and no trailing slash)."
   (string-trim-right (expand-file-name path) "/"))
 
 
