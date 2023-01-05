@@ -1,6 +1,12 @@
 ;;; projtree.el --- Display project directory tree of visited file.  -*- lexical-binding: t -*-
 (require 'hierarchy)
 
+(defface projtree-highlight
+  '((t :inherit highlight :extend t))
+  "Default face for highlighting the visited file in the project tree."
+  :group 'projtree)
+
+
 (cl-defstruct projtree-set
   "A collection of project trees (`projtree' instances).
 The project trees are identified by project root path."
@@ -51,6 +57,14 @@ If the requested `projtree' does not already exist it is created."
 (defun projtree->root (self)
   (projtree-root self))
 
+(defun projtree->selected-path (self)
+  (projtree-selected-path self))
+
+(defun projtree->set-selected-path (self path)
+  ;; TODO validate that path is below root
+  (let ((path (projtree--abspath path)))
+    (setf (projtree-selected-path self) path)))
+
 (defun projtree->expanded-p (self path)
   (let ((path (projtree--abspath path)))
     (gethash path (projtree-expanded-paths self))))
@@ -63,12 +77,30 @@ If the requested `projtree' does not already exist it is created."
   (dolist (p paths)
     (projtree->expand-path self p)))
 
+(defun projtree->expand-to-root (self path)
+  (let* ((root (projtree->root self))
+         (ancestors (projtree--ancestor-paths root path)))
+    (projtree->expand-paths self ancestors)))
+
 (defun projtree->toggle-expand (self path)
   (let ((path (projtree--abspath path))
         (value (not (projtree->expanded-p self path))))
     (puthash path value (projtree-expanded-paths self))))
 
+;; TODO
 (defun projtree->display (self buffer)
+  "TODO,"
+  (message "Opening project %s (selected path: %s)" (projtree->root self) (projtree->selected-path self))
+  ;; Make sure path to visited file is unfolded in project tree.
+  (let ((selected-path (projtree->selected-path self)))
+    (when selected-path
+      (projtree->expand-to-root self selected-path)))
+  ;; Display project tree in project tree buffer.
+  (projtree->_display-tree self buffer)
+  ;; Highlight visited file in project tree buffer.
+  (projtree->_highlight-selected-path self buffer))
+
+(defun projtree->_display-tree (self buffer)
   "Display project tree SELF in the given BUFFER.
 Overwrites any prior BUFFER content."
   (let ((proj-hierarchy (projtree->_build-hierarchy self)))
@@ -87,11 +119,42 @@ Overwrites any prior BUFFER content."
          (if (file-directory-p path)
              (progn
                (projtree->toggle-expand self path)
-               ;; TODO: can we just do (projtree->display self buffer)?
-               (projtree-open))
+               (projtree->display self buffer))
            (message "Opening %s ..." path)
            (find-file-other-window path)))))
      buffer)))
+
+(defvar projtree--hl-overlay nil)
+
+;; TODO something wrong here
+(defun projtree->_highlight-selected-path (self buffer)
+  (let ((selected-path (projtree->selected-path self)))
+    ;; First clear any old highlight overlay.
+    (when projtree--hl-overlay
+      (delete-overlay projtree--hl-overlay))
+    ;; Then produce a new highlight overlay for the visited file.
+    (when selected-path
+      (projtree--highlight-file selected-path buffer))))
+
+(defun projtree--highlight-file (path buffer)
+  "Highlight a certain PATH in BUFFER."
+  (with-current-buffer buffer
+    (let ((selected-linum (cl-position path (mapcar #'car tabulated-list-entries) :test #'equal)))
+      (projtree--highlight-row (+ selected-linum 1) buffer))))
+
+(defun projtree--highlight-row (line-number buffer)
+  "Highlight a certain LINE-NUMBER in BUFFER."
+  (with-current-buffer buffer
+    (goto-line line-number)
+    (let* ((start (line-beginning-position))
+           (end (line-end-position))
+           (hl-overlay (make-overlay start (+ 1 end))))
+      (overlay-put hl-overlay 'face 'projtree-highlight)
+      (overlay-put hl-overlay 'before-string (propertize "X" 'display (list 'left-fringe 'right-triangle)))
+      (setq projtree--hl-overlay hl-overlay)
+      ;; Move point to highlighted row in in project tree buffer window.
+      (set-window-point (get-buffer-window (current-buffer)) start))))
+
 
 (defun projtree->_expand-status-symbol (self path)
   (if (projtree->expanded-p self path)
@@ -151,62 +214,30 @@ Will return nil if the visited file is not in a project structure."
       (list path))))
 
 
-;; TODO make selected-path part of projtree?
-(defun projtree--render (projtree selected-path)
-  (message "Opening project %s (selected path: %s)" (projtree->root projtree) selected-path)
-  (when selected-path
-    ;; TODO in project trees table
-    (let ((root (projtree->root projtree)))
-      (projtree->expand-paths projtree (projtree--ancestor-paths root selected-path))))
-  (projtree->display projtree (projtree--get-projtree-buffer))
-  (projtree--clear-highlight)
-  (when selected-path
-    (projtree--highlight-file selected-path)))
-
-
-(defun projtree--highlight-file (path)
-  "Highlight a certain PATH in the project tree buffer."
-  (with-current-buffer (projtree--get-projtree-buffer)
-    (let ((selected-linum (cl-position path (mapcar #'car tabulated-list-entries) :test #'equal)))
-      (projtree--highlight-row (+ selected-linum 1)))))
-
-
-(defface projtree-highlight
-  '((t :inherit highlight :extend t))
-  "Default face for highlighting the visited file in the project tree."
-  :group 'projtree)
-
-(defvar projtree--hl-overlay nil)
-
-(defun projtree--clear-highlight ()
-  (when projtree--hl-overlay
-    (delete-overlay projtree--hl-overlay)))
-
-(defun projtree--highlight-row (line-number)
-  "Highlight a certain LINE-NUMBER in the project tree buffer."
-  (with-current-buffer (projtree--get-projtree-buffer)
-    (goto-line line-number)
-    (let* ((start (line-beginning-position))
-           (end (line-end-position))
-           (hl-overlay (make-overlay start (+ 1 end))))
-      (overlay-put hl-overlay 'face 'projtree-highlight)
-      (overlay-put hl-overlay 'before-string (propertize "X" 'display (list 'left-fringe 'right-triangle)))
-      (setq projtree--hl-overlay hl-overlay)
-      ;; Move point to highlighted row in in project tree buffer window.
-      (set-window-point (get-buffer-window (current-buffer)) start))))
-
-
-
-
 (defun projtree-open ()
-  "Render a project tree rooted at the current project.
+  "Open a buffer that displays a project tree rooted at the current project.
 The currently visited project file (if any) is highlighted."
   (interactive)
-  (let ((projtree (projtree--current))
-        (selected-file (buffer-file-name projtree--visited-buffer)))
+  (let ((projtree (projtree--current)))
     (when projtree
-      ;; TODO (projtree->render projtree)
-      (projtree--render projtree selected-file))))
+      (projtree->display projtree (projtree--get-projtree-buffer)))))
+
+
+;; (defun projtree--render (projtree selected-path)
+;;   (message "Opening project %s (selected path: %s)" (projtree->root projtree) selected-path)
+;;   ;; Make sure path to visited file is unfolded in project tree.
+;;   (when selected-path
+;;     (projtree->expand-to-root projtree selected-path))
+;;   ;; Display project tree in project tree buffer.
+;;   (projtree->display projtree (projtree--get-projtree-buffer))
+;;   ;; Highlight visited file in project tree buffer.
+;;   (projtree--clear-highlight)
+;;   (when selected-path
+;;     (projtree--highlight-file selected-path)))
+
+
+
+
 
 
 (defun projtree-close ()
@@ -253,9 +284,16 @@ The currently visited project file (if any) is highlighted."
     (when (projtree--file-visiting-buffer-p curr-buf)
       (let ((prior-buffer projtree--visited-buffer))
         (when (not (eq prior-buffer curr-buf))
-          (setq projtree--visited-buffer curr-buf)
+          (projtree--set-visited-buffer curr-buf)
           (projtree-open))))))
 
+
+(defun projtree--set-visited-buffer (buffer)
+  (setq projtree--visited-buffer buffer)
+  ;; Also mark path as selected in current project tree.
+  (let ((projtree (projtree--current))
+        (visited-file (buffer-file-name buffer)))
+    (projtree->set-selected-path projtree visited-file)))
 
 ;;;###autoload
 (define-minor-mode projtree-mode
@@ -263,8 +301,8 @@ The currently visited project file (if any) is highlighted."
   :lighter nil ;; Do not display on mode-line.
   (if projtree-mode
       (progn
-         (add-hook 'window-configuration-change-hook #'projtree--render-on-buffer-switch)
-        (setq projtree--visited-buffer (current-buffer))
+        (add-hook 'window-configuration-change-hook #'projtree--render-on-buffer-switch)
+        (projtree--set-visited-buffer (current-buffer))
         (projtree-open))
     (remove-hook 'window-configuration-change-hook #'projtree--render-on-buffer-switch)
     (projtree-close)))
