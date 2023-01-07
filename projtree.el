@@ -46,6 +46,8 @@
   :group 'projtree)
 
 
+(defvar projtree-report-git-status t)
+
 (cl-defstruct projtree-set
   "A collection of project trees (`projtree' instances).
 The project trees are identified by project root path."
@@ -129,6 +131,7 @@ If the requested `projtree' does not already exist it is created."
 (defun projtree->display (self buffer)
   "TODO,"
   (message "Opening project %s (selected path: %s)" (projtree->root self) (projtree->selected-path self))
+  (setq-local start-time (current-time))
   ;; Change the default-directory of the project tree buffer to make git status
   ;; execute in the right context.
   (with-current-buffer buffer
@@ -140,7 +143,8 @@ If the requested `projtree' does not already exist it is created."
   ;; Display project tree in project tree buffer.
   (projtree->_display-tree self buffer)
   ;; Highlight visited file in project tree buffer.
-  (projtree->_highlight-selected-path self buffer))
+  (projtree->_highlight-selected-path self buffer)
+  (message "Project opened in %.2fs." (float-time (time-subtract (current-time) start-time))))
 
 (defun projtree->_display-tree (self buffer)
   "Display project tree SELF in the given BUFFER.
@@ -159,7 +163,6 @@ Overwrites any prior BUFFER content."
              (progn
                (projtree->toggle-expand self path)
                (projtree->display self buffer))
-           (message "Opening %s ..." path)
            (find-file-other-window path)))))
      buffer)))
 
@@ -180,16 +183,18 @@ Overwrites any prior BUFFER content."
        (insert (propertize filename 'face (or git-face 'projtree-file))))))
 
 (defun projtree->_vc-state (self path)
-  (let ((root (projtree--abspath (projtree->root self)))
-        (path (projtree--abspath path)))
-    (let ((state (vc-git-state path)))
-      ;; Handle case where git root gets reported as 'unregistered when it
-      ;; should be reported 'up-to-date.
-      (if (and (file-directory-p path)
-               (equal path root)
-               (equal state 'unregistered))
-          'up-to-date
-        state))))
+  (if projtree-report-git-status
+      (let ((root (projtree--abspath (projtree->root self)))
+            (path (projtree--abspath path)))
+        (let ((state (vc-git-state path)))
+          ;; Handle case where git root gets reported as 'unregistered when it
+          ;; should be reported 'up-to-date.
+          (if (and (file-directory-p path)
+                   (equal path root)
+                   (equal state 'unregistered))
+              'up-to-date
+            state)))
+    nil))
 
 (defun projtree--git-status-face (vc-state)
   (pcase vc-state
