@@ -304,7 +304,7 @@ The currently visited project file (if any) is highlighted."
 
 (defun projtree--call-async (fn)
   "Call function FN asynchronously."
-  (run-with-idle-timer 0 nil (funcall fn)))
+  (run-with-idle-timer 0 nil fn))
 
 
 (defvar projtree--visited-buffer nil
@@ -325,7 +325,7 @@ The currently visited project file (if any) is highlighted."
       (let ((prior-buffer projtree--visited-buffer))
         (when (not (eq prior-buffer curr-buf))
           (projtree--set-visited-buffer curr-buf)
-          (projtree-open))))))
+          (projtree--call-async #'projtree-open))))))
 
 
 (defun projtree--set-visited-buffer (buffer)
