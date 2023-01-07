@@ -240,8 +240,17 @@ Overwrites any prior BUFFER content."
   (lambda (folder)
     (if (and (file-directory-p folder)
              (projtree->expanded-p self folder))
-        ;; TODO include hidden files but avoid "." and ".."
-        (directory-files folder t "^[^\\.].*$")
+        ;; Ignore "." and ".." and sort on (1) directory (2) name.
+        (let ((files (directory-files folder t)))
+          (sort (seq-filter (lambda (f)
+                              (not (or (equal (file-name-nondirectory f) ".")
+                                       (equal (file-name-nondirectory f) ".."))))
+                            files)
+                (lambda (f1 f2)
+                  (if (xor (file-directory-p f1)
+                           (file-directory-p f2))
+                      (file-directory-p f1)
+                    (string< f1 f2)))))
       nil)))
 
 (defun projtree->_build-hierarchy (self)
