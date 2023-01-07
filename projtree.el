@@ -82,7 +82,6 @@ If the requested `projtree' does not already exist it is created."
   expanded-paths
   ;; Tracks which path in the project tree is currently visited (and therefore
   ;; should be highlighted).
-  ;; TODO: actually make use of this
   selected-path)
 
 (defun projtree->new (project-root)
