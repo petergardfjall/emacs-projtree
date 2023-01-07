@@ -2,6 +2,8 @@
 (require 'hierarchy)
 (require 'vc-git)
 
+
+
 (defface projtree-highlight
   '((t :inherit highlight :extend t))
   "Face for highlighting the visited file in the project tree."
@@ -162,20 +164,30 @@ Overwrites any prior BUFFER content."
      buffer)))
 
 (defun projtree->_render-tree-entry (self path)
-  ;; TODO set default-directory of project buffer to projtree->root
-  ;; TODO run vc-git commands from projtree buffer
-  (let* ((file-name (file-name-nondirectory path))
-         (vc-status (vc-git-state path))
-         (is-dir (file-directory-p path))
-         (vc-state-face (projtree--vc-status-face vc-status is-dir)))
-    (if is-dir
-        (progn
-          ;; directory expand state symbol: +/-
-          (insert (propertize (projtree->_expand-status-symbol self path) 'face 'projtree-directory))
-          (insert " ")
-          (insert (propertize file-name 'face vc-state-face)))
-      ;; Regular file.
-      (insert (propertize file-name 'face vc-state-face)))))
+   (let* ((file-name (file-name-nondirectory path))
+          (vc-status (projtree->_vc-state self path))
+          (is-dir (file-directory-p path))
+          (vc-state-face (projtree--vc-status-face vc-status is-dir)))
+     (if is-dir
+         (progn
+           ;; Directory expand state symbol: +/-
+           (insert (propertize (projtree->_expand-status-symbol self path) 'face 'projtree-directory))
+           (insert " ")
+           (insert (propertize file-name 'face vc-state-face)))
+       ;; Regular file.
+       (insert (propertize file-name 'face vc-state-face)))))
+
+(defun projtree->_vc-state (self path)
+  (let ((root (projtree--abspath (projtree->root self)))
+        (path (projtree--abspath path)))
+    (let ((state (vc-git-state path)))
+      ;; Handle case where git root gets reported as 'unregistered when it
+      ;; should be reported 'up-to-date.
+      (if (and (file-directory-p path)
+               (equal path root)
+               (equal state 'unregistered))
+          'up-to-date
+        state))))
 
 (defun projtree--vc-status-face (vc-status is-dir)
   (pcase vc-status
