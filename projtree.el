@@ -128,6 +128,10 @@ If the requested `projtree' does not already exist it is created."
 (defun projtree->display (self buffer)
   "TODO,"
   (message "Opening project %s (selected path: %s)" (projtree->root self) (projtree->selected-path self))
+  ;; Change the default-directory of the project tree buffer to make git status
+  ;; execute in the right context.
+  (with-current-buffer buffer
+    (setq-local default-directory (projtree->root self)))
   ;; Make sure path to visited file is unfolded in project tree.
   (let ((selected-path (projtree->selected-path self)))
     (when selected-path
