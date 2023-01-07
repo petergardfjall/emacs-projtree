@@ -10,37 +10,37 @@
   :group 'projtree)
 
 
-(defface projtree-directory
+(defface projtree-dir
   '((t :inherit dired-directory))
   "TODO."
   :group 'projtree)
 
-(defface projtree-file-unmodified
+(defface projtree-file
   '((t :inherit default :extend t))
   "TODO."
   :group 'projtree)
 
-(defface projtree-file-modified
+(defface projtree-git-modified
   '((t :inherit diff-changed :extend t))
   "TODO."
   :group 'projtree)
 
-(defface projtree-file-added
+(defface projtree-git-added
   '((t :inherit diff-changed :extend t))
   "TODO."
   :group 'projtree)
 
-(defface projtree-file-ignored
+(defface projtree-git-ignored
   '((t :inherit dired-ignored :extend t))
   "TODO."
   :group 'projtree)
 
-(defface projtree-file-untracked
+(defface projtree-git-untracked
   '((t :inherit shadow :extend t))
   "TODO."
   :group 'projtree)
 
-(defface projtree-file-conflict
+(defface projtree-git-conflict
   '((t :inherit error :extend t))
   "TODO."
   :group 'projtree)
@@ -164,18 +164,20 @@ Overwrites any prior BUFFER content."
      buffer)))
 
 (defun projtree->_render-tree-entry (self path)
-   (let* ((file-name (file-name-nondirectory path))
-          (vc-status (projtree->_vc-state self path))
+   (let* ((filename (file-name-nondirectory path))
+          (vc-state (projtree->_vc-state self path))
           (is-dir (file-directory-p path))
-          (vc-state-face (projtree--vc-status-face vc-status is-dir)))
+          (git-face (projtree--git-status-face vc-state)))
      (if is-dir
+         ;; Directory.
          (progn
-           ;; Directory expand state symbol: +/-
-           (insert (propertize (projtree->_expand-status-symbol self path) 'face 'projtree-directory))
-           (insert " ")
-           (insert (propertize file-name 'face vc-state-face)))
+           (let ((expand-symbol (if (projtree->expanded-p self path) "-" "+")))
+             (insert (propertize expand-symbol 'face 'projtree-dir))
+             (insert " ")
+             (insert (propertize filename 'face (or git-face 'projtree-dir)))))
        ;; Regular file.
-       (insert (propertize file-name 'face vc-state-face)))))
+       (insert " ")
+       (insert (propertize filename 'face (or git-face 'projtree-file))))))
 
 (defun projtree->_vc-state (self path)
   (let ((root (projtree--abspath (projtree->root self)))
@@ -189,13 +191,13 @@ Overwrites any prior BUFFER content."
           'up-to-date
         state))))
 
-(defun projtree--vc-status-face (vc-status is-dir)
-  (pcase vc-status
-    ('up-to-date (if is-dir 'projtree-directory 'projtree-file-unmodified))
-    ('edited 'projtree-file-modified)
-    ('conflict 'projtree-file-conflict)
-    ('unregistered 'projtree-file-untracked)
-    ('ignored 'projtree-file-ignored)))
+(defun projtree--git-status-face (vc-state)
+  (pcase vc-state
+    ('up-to-date nil) ;; Note: don't add any face attributes.
+    ('edited 'projtree-git-modified)
+    ('conflict 'projtree-git-conflict)
+    ('unregistered 'projtree-git-untracked)
+    ('ignored 'projtree-git-ignored)))
 
 (defvar projtree--hl-overlay nil)
 
