@@ -167,20 +167,21 @@ Overwrites any prior BUFFER content."
      buffer)))
 
 (defun projtree->_render-tree-entry (self path)
-   (let* ((filename (file-name-nondirectory path))
-          (vc-state (projtree->_vc-state self path))
-          (is-dir (file-directory-p path))
-          (git-face (projtree--git-status-face vc-state)))
-     (if is-dir
-         ;; Directory.
-         (progn
-           (let ((expand-symbol (if (projtree->expanded-p self path) "-" "+")))
-             (insert (propertize expand-symbol 'face 'projtree-dir))
-             (insert " ")
-             (insert (propertize filename 'face (or git-face 'projtree-dir)))))
-       ;; Regular file.
-       (insert " ")
-       (insert (propertize filename 'face (or git-face 'projtree-file))))))
+  (let* ((filename (file-name-nondirectory path))
+         
+         (vc-state (projtree->_vc-state self path))
+         (is-dir (file-directory-p path))
+         (git-face (projtree--git-status-face vc-state)))
+    (if is-dir
+        ;; Directory.
+        (progn
+          (let ((expand-symbol (if (projtree->expanded-p self path) "-" "+")))
+            (insert (propertize expand-symbol 'face 'projtree-dir))
+            (insert " ")
+            (insert (propertize filename 'face (or git-face 'projtree-dir)))))
+      ;; Regular file.
+      (insert " ")
+      (insert (propertize filename 'face (or git-face 'projtree-file))))))
 
 (defun projtree->_vc-state (self path)
   (if projtree-report-git-status
