@@ -1,9 +1,46 @@
 ;;; projtree.el --- Display project directory tree of visited file.  -*- lexical-binding: t -*-
 (require 'hierarchy)
+(require 'vc-git)
 
 (defface projtree-highlight
   '((t :inherit highlight :extend t))
-  "Default face for highlighting the visited file in the project tree."
+  "Face for highlighting the visited file in the project tree."
+  :group 'projtree)
+
+
+(defface projtree-directory
+  '((t :inherit dired-directory))
+  "TODO."
+  :group 'projtree)
+
+(defface projtree-file-unmodified
+  '((t :inherit default :extend t))
+  "TODO."
+  :group 'projtree)
+
+(defface projtree-file-modified
+  '((t :inherit diff-changed :extend t))
+  "TODO."
+  :group 'projtree)
+
+(defface projtree-file-added
+  '((t :inherit diff-changed :extend t))
+  "TODO."
+  :group 'projtree)
+
+(defface projtree-file-ignored
+  '((t :inherit dired-ignored :extend t))
+  "TODO."
+  :group 'projtree)
+
+(defface projtree-file-untracked
+  '((t :inherit shadow :extend t))
+  "TODO."
+  :group 'projtree)
+
+(defface projtree-file-conflict
+  '((t :inherit error :extend t))
+  "TODO."
   :group 'projtree)
 
 
@@ -110,10 +147,7 @@ Overwrites any prior BUFFER content."
       (hierarchy-labelfn-button
        ;; labelfn
        (lambda (path indent)
-         (let ((file-name (file-name-nondirectory path)))
-           (if (file-directory-p path)
-               (insert (propertize (format "%s %s" (projtree->_expand-status-symbol self path) file-name) 'face '(dired-directory)))
-             (insert (propertize file-name 'face '(default))))))
+         (projtree->_render-tree-entry self path))
        ;; actionfn
        (lambda (path indent)
          (if (file-directory-p path)
@@ -124,9 +158,32 @@ Overwrites any prior BUFFER content."
            (find-file-other-window path)))))
      buffer)))
 
+(defun projtree->_render-tree-entry (self path)
+  ;; TODO set default-directory of project buffer to projtree->root
+  ;; TODO run vc-git commands from projtree buffer
+  (let* ((file-name (file-name-nondirectory path))
+         (vc-status (vc-git-state path))
+         (is-dir (file-directory-p path))
+         (vc-state-face (projtree--vc-status-face vc-status is-dir)))
+    (if is-dir
+        (progn
+          ;; directory expand state symbol: +/-
+          (insert (propertize (projtree->_expand-status-symbol self path) 'face 'projtree-directory))
+          (insert " ")
+          (insert (propertize file-name 'face vc-state-face)))
+      ;; Regular file.
+      (insert (propertize file-name 'face vc-state-face)))))
+
+(defun projtree--vc-status-face (vc-status is-dir)
+  (pcase vc-status
+    ('up-to-date (if is-dir 'projtree-directory 'projtree-file-unmodified))
+    ('edited 'projtree-file-modified)
+    ('conflict 'projtree-file-conflict)
+    ('unregistered 'projtree-file-untracked)
+    ('ignored 'projtree-file-ignored)))
+
 (defvar projtree--hl-overlay nil)
 
-;; TODO something wrong here
 (defun projtree->_highlight-selected-path (self buffer)
   (let ((selected-path (projtree->selected-path self)))
     ;; First clear any old highlight overlay.
@@ -214,6 +271,7 @@ Will return nil if the visited file is not in a project structure."
       (list path))))
 
 
+
 (defun projtree-open ()
   "Open a buffer that displays a project tree rooted at the current project.
 The currently visited project file (if any) is highlighted."
@@ -221,24 +279,6 @@ The currently visited project file (if any) is highlighted."
   (let ((projtree (projtree--current)))
     (when projtree
       (projtree->display projtree (projtree--get-projtree-buffer)))))
-
-
-;; (defun projtree--render (projtree selected-path)
-;;   (message "Opening project %s (selected path: %s)" (projtree->root projtree) selected-path)
-;;   ;; Make sure path to visited file is unfolded in project tree.
-;;   (when selected-path
-;;     (projtree->expand-to-root projtree selected-path))
-;;   ;; Display project tree in project tree buffer.
-;;   (projtree->display projtree (projtree--get-projtree-buffer))
-;;   ;; Highlight visited file in project tree buffer.
-;;   (projtree--clear-highlight)
-;;   (when selected-path
-;;     (projtree--highlight-file selected-path)))
-
-
-
-
-
 
 (defun projtree-close ()
   (interactive)
