@@ -1,6 +1,7 @@
-;;; projtree.el --- Display project directory tree of visited file.  -*- lexical-binding: t -*-
+;;; projtree.el --- Display project directory tree of visited file  -*- lexical-binding: t -*-
 (require 'hierarchy)
-(require 'vc-git)
+;; (require 'vc-git) ;; TODO remove
+;; (require 'projtree-git) ;; TODO load conditionally?
 
 
 
@@ -146,17 +147,26 @@ If the requested `projtree' does not already exist it is created."
   (projtree->_highlight-selected-path self buffer)
   (message "Project opened in %.2fs." (float-time (time-subtract (current-time) start-time))))
 
+
+(autoload 'projtree-git--status "projtree-git")
+
+(defun projtree->_git-statuses (self)
+  (if projtree-report-git-status
+      (projtree-git--status (projtree->root self))
+    nil))
+
 (defun projtree->_display-tree (self buffer)
   "Display project tree SELF in the given BUFFER.
 Overwrites any prior BUFFER content."
-  (let ((proj-hierarchy (projtree->_build-hierarchy self)))
+  (let ((proj-hierarchy (projtree->_build-hierarchy self))
+        (git-statuses (projtree->_git-statuses self)))
     (hierarchy-tabulated-display
      proj-hierarchy
      (hierarchy-labelfn-indent
       (hierarchy-labelfn-button
        ;; labelfn
        (lambda (path indent)
-         (projtree->_render-tree-entry self path))
+         (projtree->_render-tree-entry self path git-statuses))
        ;; actionfn
        (lambda (path indent)
          (if (file-directory-p path)
@@ -166,12 +176,11 @@ Overwrites any prior BUFFER content."
            (find-file-other-window path)))))
      buffer)))
 
-(defun projtree->_render-tree-entry (self path)
+(defun projtree->_render-tree-entry (self path &optional git-statuses)
   (let* ((filename (file-name-nondirectory path))
-         
-         (vc-state (projtree->_vc-state self path))
          (is-dir (file-directory-p path))
-         (git-face (projtree--git-status-face vc-state)))
+         (git-status (if git-statuses (gethash path git-statuses) nil))
+         (git-face (if git-status (projtree-git--status-face git-status) nil)))
     (if is-dir
         ;; Directory.
         (progn
@@ -182,28 +191,6 @@ Overwrites any prior BUFFER content."
       ;; Regular file.
       (insert " ")
       (insert (propertize filename 'face (or git-face 'projtree-file))))))
-
-(defun projtree->_vc-state (self path)
-  (if projtree-report-git-status
-      (let ((root (projtree--abspath (projtree->root self)))
-            (path (projtree--abspath path)))
-        (let ((state (vc-git-state path)))
-          ;; Handle case where git root gets reported as 'unregistered when it
-          ;; should be reported 'up-to-date.
-          (if (and (file-directory-p path)
-                   (equal path root)
-                   (equal state 'unregistered))
-              'up-to-date
-            state)))
-    nil))
-
-(defun projtree--git-status-face (vc-state)
-  (pcase vc-state
-    ('up-to-date nil) ;; Note: don't add any face attributes.
-    ('edited 'projtree-git-modified)
-    ('conflict 'projtree-git-conflict)
-    ('unregistered 'projtree-git-untracked)
-    ('ignored 'projtree-git-ignored)))
 
 (defvar projtree--hl-overlay nil)
 

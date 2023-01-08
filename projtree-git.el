@@ -1,11 +1,10 @@
-;;; projtree-git.el --- projtree git utility functions -*- lexical-binding: t -*-
+;;; projtree.el --- Display project directory tree of visited file -*- lexical-binding: t -*-
 
 (defvar projtree-git--cmd (executable-find "git")
   "Full system path to a git executable.")
 
 (defun projtree-git--status (root-dir)
   "Run git status in the given git ROOT-DIR.
-
 The status is returned as a hash table where the keys are
 absolute file paths and values are status codes following the git
 status porcelain format.  Note that up-to-date files do not have
@@ -14,15 +13,23 @@ entries in the resulting hash table."
     (setq-local default-directory root-dir)
     (let ((buf (current-buffer))
           (statuses (make-hash-table :test 'equal)))
-      (call-process projtree-git--cmd nil buf nil "status" "--porcelain" "--ignored")
+      (call-process projtree-git--cmd nil buf nil "status" "--porcelain" "--untracked-files=normal" "--ignored")
       (goto-char (point-min))
       (while (not (eobp))
         (let* ((line (buffer-substring (line-beginning-position) (line-end-position)))
                (tokens (split-string line))
                (status (nth 0 tokens))
                (file (nth 1 tokens))
-               (abs-path (expand-file-name file)))
-          (puthash abs-path status statuses)
+               (path (projtree--abspath (expand-file-name file))))
+          (puthash path status statuses)
+          ;; Mark modification states for any ancestor directories.
+          (dolist (ancestor (butlast (projtree--ancestor-paths root-dir path)))
+            (pcase (string-to-char status)
+              (?M (puthash ancestor "M" statuses))
+              (?A (puthash ancestor "M" statuses))
+              (?D (puthash ancestor "M" statuses))
+              (?U (puthash ancestor "U" statuses))))
+          ;; Next line of output.
           (forward-line 1)))
       statuses)))
 
