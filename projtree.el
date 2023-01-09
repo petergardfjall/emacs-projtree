@@ -100,7 +100,7 @@ If the requested `projtree' does not already exist it is created."
 
 (defun projtree->new (project-root)
   "Create an empty projtree rooted at directory PROJECT-ROOT."
-  (make-projtree :root project-root
+  (make-projtree :root (projtree--abspath project-root)
                  :cursor nil
                  :expanded-paths (make-hash-table :test 'equal)
                  :selected-path nil))
@@ -148,23 +148,25 @@ If the requested `projtree' does not already exist it is created."
 (defun projtree->display (self buffer)
   "TODO,"
   (message "Opening project %s ..." (projtree->root self))
-  (setq-local start-time (current-time))
-  ;; Change the default-directory of the project tree buffer to make git status
-  ;; execute in the right context.
-  (with-current-buffer buffer
-    (setq-local default-directory (projtree->root self)))
-  ;; Make sure path to visited file is unfolded in project tree.
-  (let ((selected-path (projtree->selected-path self)))
-    (when selected-path
-      (projtree->expand-to-root self selected-path)))
-  ;; Display project tree in project tree buffer.
-  (projtree->_display-tree self buffer)
-  ;; Highlight visited file in project tree buffer.
-  (projtree->_highlight-selected-path self buffer)
-  ;; Move cursor to saved position (if any).
-  (when (projtree->cursor self)
-    (set-window-point (get-buffer-window buffer) (projtree->cursor self)))
-  (message "Project opened in %.2fs." (float-time (time-subtract (current-time) start-time))))
+  (let ((start-time (current-time)))
+    ;; Change the default-directory of the project tree buffer to make git status
+    ;; execute in the right context.
+    (with-current-buffer buffer
+      (setq-local default-directory (projtree->root self)))
+    ;; Make sure path to visited file is unfolded in project tree.
+    (let ((selected-path (projtree->selected-path self)))
+      (when selected-path
+        (projtree->expand-to-root self selected-path)))
+    ;; Display project tree in project tree buffer.
+    (projtree->_display-tree self buffer)
+    ;; Highlight visited file in project tree buffer.
+    (projtree->_highlight-selected-path self buffer)
+    ;; Move cursor to saved position (if any).
+    (when (projtree->cursor self)
+      (set-window-point (get-buffer-window buffer) (projtree->cursor self)))
+    (with-current-buffer buffer
+      (setq-local mode-line-format (list "%e" mode-line-front-space "projtree: " (file-name-nondirectory (projtree->root self)))))
+    (message "Project opened in %.2fs." (float-time (time-subtract (current-time) start-time)))))
 
 
 (autoload 'projtree-git--status "projtree-git")
