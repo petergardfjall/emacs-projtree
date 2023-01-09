@@ -147,7 +147,7 @@ If the requested `projtree' does not already exist it is created."
 ;; TODO
 (defun projtree->display (self buffer)
   "TODO,"
-  (message "Opening project %s (selected path: %s)" (projtree->root self) (projtree->selected-path self))
+  (message "Opening project %s ..." (projtree->root self))
   (setq-local start-time (current-time))
   ;; Change the default-directory of the project tree buffer to make git status
   ;; execute in the right context.
@@ -373,7 +373,7 @@ The currently visited project file (if any) is highlighted."
   ;; Also mark path as selected in current project tree.
   (let ((projtree (projtree--current))
         (visited-file (buffer-file-name buffer)))
-    (when projtree
+    (when (and projtree visited-file)
       (projtree->set-selected-path projtree visited-file))))
 
 ;;;###autoload
