@@ -373,7 +373,8 @@ The currently visited project file (if any) is highlighted."
   ;; Also mark path as selected in current project tree.
   (let ((projtree (projtree--current))
         (visited-file (buffer-file-name buffer)))
-    (projtree->set-selected-path projtree visited-file)))
+    (when projtree
+      (projtree->set-selected-path projtree visited-file))))
 
 ;;;###autoload
 (define-minor-mode projtree-mode
