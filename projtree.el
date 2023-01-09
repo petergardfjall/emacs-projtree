@@ -176,6 +176,25 @@ If the requested `projtree' does not already exist it is created."
       (projtree-git--status (projtree->root self))
     nil))
 
+;; TODO If no git status is found for path, check to see if any ancestor
+;; directory is ignored/untracked.
+(defun projtree->_git-status (self git-statuses path)
+  (let ((path-status (gethash path git-statuses))
+        (root-dir (projtree->root self)))
+    (if path-status
+        path-status
+      ;; If no git status is found for path, check to see if any ancestor
+      ;; directory is ignored/untracked.
+      (let ((ignored/untracked-ancestor (cl-find-if (lambda (ancestor-path)
+                                                     (let ((status (gethash ancestor-path git-statuses)))
+                                                       (or (equal status "!!")
+                                                           (equal status "??"))))
+                                                    (butlast (projtree--ancestor-paths root-dir path)))))
+        (if ignored/untracked-ancestor
+            (gethash ignored/untracked-ancestor git-statuses)
+          nil)))))
+
+
 (defun projtree->_display-tree (self buffer)
   "Display project tree SELF in the given BUFFER.
 Overwrites any prior BUFFER content."
@@ -202,8 +221,8 @@ Overwrites any prior BUFFER content."
 (defun projtree->_render-tree-entry (self path &optional git-statuses)
   (let* ((filename (file-name-nondirectory path))
          (is-dir (file-directory-p path))
-         (git-status (if git-statuses (gethash path git-statuses) nil))
-         (git-face (if git-status (projtree-git--status-face git-status) nil)))
+         (git-status (when git-statuses (projtree->_git-status self git-statuses path)))
+         (git-face (when git-status (projtree-git--status-face git-status))))
     (if is-dir
         ;; Directory.
         (progn
