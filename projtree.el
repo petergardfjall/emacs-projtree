@@ -46,8 +46,11 @@
   "TODO."
   :group 'projtree)
 
+(defvar projtree-report-git-status t
+  "If non-nil git status will be indicated for project tree files.")
 
-(defvar projtree-report-git-status t)
+;; TODO customizable window width
+;; TODO variable for project tree buffer name.
 
 (cl-defstruct projtree-set
   "A collection of project trees (`projtree' instances).
@@ -80,9 +83,15 @@ If the requested `projtree' does not already exist it is created."
 
 
 (cl-defstruct projtree
-  "TODO"
+  "TODO: description"
+
   ;; The root directory of the project tree.
   root
+  ;; The current cursor position in the project tree buffer for this project
+  ;; tree. This will be set whenever a file is opened or a folder is
+  ;; opened/folded in the project tree buffer to avoid jumpy cursor behavior on
+  ;; re-rendering of the tree.
+  cursor
   ;; Tracks which paths of the project tree are expanded (to be displayed).
   expanded-paths
   ;; Tracks which path in the project tree is currently visited (and therefore
@@ -92,11 +101,18 @@ If the requested `projtree' does not already exist it is created."
 (defun projtree->new (project-root)
   "Create an empty projtree rooted at directory PROJECT-ROOT."
   (make-projtree :root project-root
+                 :cursor nil
                  :expanded-paths (make-hash-table :test 'equal)
                  :selected-path nil))
 
 (defun projtree->root (self)
   (projtree-root self))
+
+(defun projtree->cursor (self)
+  (projtree-cursor self))
+
+(defun projtree->set-cursor (self point)
+  (setf (projtree-cursor self) point))
 
 (defun projtree->selected-path (self)
   (projtree-selected-path self))
@@ -145,6 +161,9 @@ If the requested `projtree' does not already exist it is created."
   (projtree->_display-tree self buffer)
   ;; Highlight visited file in project tree buffer.
   (projtree->_highlight-selected-path self buffer)
+  ;; Move cursor to saved position (if any).
+  (when (projtree->cursor self)
+    (set-window-point (get-buffer-window buffer) (projtree->cursor self)))
   (message "Project opened in %.2fs." (float-time (time-subtract (current-time) start-time))))
 
 
@@ -169,6 +188,8 @@ Overwrites any prior BUFFER content."
          (projtree->_render-tree-entry self path git-statuses))
        ;; actionfn
        (lambda (path indent)
+         ;; Remember cursor position in project tree buffer.
+         (projtree->set-cursor self (point))
          (if (file-directory-p path)
              (progn
                (projtree->toggle-expand self path)
