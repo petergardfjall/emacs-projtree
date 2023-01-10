@@ -13,7 +13,7 @@ entries in the resulting hash table."
     (setq-local default-directory root-dir)
     (let ((buf (current-buffer))
           (statuses (make-hash-table :test 'equal)))
-      (call-process projtree-git--cmd nil buf nil "status" "--porcelain" "--untracked-files=normal" "--ignored")
+      (call-process projtree-git--cmd nil buf nil "status" "--porcelain" "--untracked-files=normal" "--ignored=matching")
       (goto-char (point-min))
       (while (not (eobp))
         (let* ((line (buffer-substring (line-beginning-position) (line-end-position)))
