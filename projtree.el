@@ -375,8 +375,12 @@ The currently visited project file (if any) is highlighted."
 
 
 (defun projtree--file-visiting-buffer-p (buffer)
-  "Return t for a BUFFER that is visiting a file, nil otherwise."
-  (buffer-file-name buffer))
+  "Return t for a BUFFER that is visiting an existing file, nil otherwise."
+  (let ((buffer-file (buffer-file-name buffer)))
+    ;; Check both that the buffer visits a file and that the file exists.  For a
+    ;; newly created buffer, the file may not yet exist on the filesystem.
+    (and buffer-file
+         (file-exists-p buffer-file))))
 
 
 (defun projtree--render-on-buffer-switch ()
