@@ -164,7 +164,9 @@ If the requested `projtree' does not already exist it is created."
     (projtree->_highlight-selected-path self buffer)
     ;; Move cursor to saved position (if any).
     (when (projtree->cursor self)
-      (set-window-point (get-buffer-window buffer) (projtree->cursor self)))
+      (with-current-buffer buffer
+        (set-window-point (get-buffer-window buffer) (projtree->cursor self))
+        (recenter)))
     (with-current-buffer buffer
       (setq-local mode-line-format (list "%e" mode-line-front-space "projtree: " (file-name-nondirectory (projtree->root self)))))
     (message "Project opened in %.2fs." (float-time (time-subtract (current-time) start-time)))))
