@@ -2,6 +2,7 @@
 (require 'hierarchy)
 ;; (require 'vc-git) ;; TODO remove
 ;; (require 'projtree-git) ;; TODO load conditionally?
+(require 'projtree-profiling)
 
 
 
@@ -397,17 +398,21 @@ The currently visited project file (if any) is highlighted."
     (when (and projtree visited-file)
       (projtree->set-selected-path projtree visited-file))))
 
+
 ;;;###autoload
 (define-minor-mode projtree-mode
   "TODO describe."
   :lighter nil ;; Do not display on mode-line.
   (if projtree-mode
       (progn
+        (projtree-profiling-enable)
         (add-hook 'window-configuration-change-hook #'projtree--render-on-buffer-switch)
         (projtree--set-visited-buffer (current-buffer))
         (projtree-open))
     (remove-hook 'window-configuration-change-hook #'projtree--render-on-buffer-switch)
-    (projtree-close)))
+    (projtree-close)
+    (projtree-profiling-disable)))
+
 
 
 (provide 'projtree)
