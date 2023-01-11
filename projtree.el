@@ -50,6 +50,12 @@
 (defvar projtree-report-git-status t
   "If non-nil git status will be indicated for project tree files.")
 
+(defvar projtree-buffer-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "g")    'projtree-open)
+    map)
+  "Keybindings available in the project tree buffer.")
+
 ;; TODO customizable window width
 ;; TODO variable for project tree buffer name.
 
@@ -162,6 +168,10 @@ If the requested `projtree' does not already exist it is created."
     (projtree->_display-tree self buffer)
     ;; Highlight visited file in project tree buffer.
     (projtree->_highlight-selected-path self buffer)
+    ;; Add extra project tree buffer key bindings on top of existing ones.
+    (with-current-buffer buffer
+      (use-local-map (make-composed-keymap projtree-buffer-map
+                                           (current-local-map))))
     ;; Move cursor to saved position (if any).
     (when (projtree->cursor self)
       (with-current-buffer buffer
