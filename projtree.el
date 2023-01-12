@@ -227,8 +227,12 @@ Overwrites any prior BUFFER content."
              (progn
                (projtree->toggle-expand self path)
                (projtree->display self buffer))
-           (find-file-other-window path)))))
-     buffer)))
+           ;; Open clicked file and switch to that buffer.
+           (let ((opened-buf (find-file-noselect path)))
+             (display-buffer-use-some-window opened-buf
+                                           (list (cons 'inhibit-same-window t)))
+             (switch-to-buffer opened-buf))))))
+       buffer)))
 
 (defun projtree->_render-tree-entry (self path &optional git-statuses)
   (let* ((filename (file-name-nondirectory path))
