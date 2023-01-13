@@ -19,7 +19,9 @@ entries in the resulting hash table."
         (let* ((line (buffer-substring (line-beginning-position) (line-end-position)))
                (tokens (split-string line))
                (status (nth 0 tokens))
-               (file (nth 1 tokens))
+               ;; Normally the file follows the status code, but for renames the
+               ;; new filename comes later: "R prior/path -> new/path"
+               (file (if (equal status "R") (nth 3 tokens) (nth 1 tokens)))
                (path (projtree--abspath (expand-file-name file))))
           (puthash path status statuses)
           ;; Mark modification states for any ancestor directories.

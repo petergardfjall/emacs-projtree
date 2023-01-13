@@ -18,32 +18,37 @@
   :group 'projtree)
 
 (defface projtree-file
-  '((t :inherit default :extend t))
+  '((t :inherit default))
   "TODO."
   :group 'projtree)
 
 (defface projtree-git-modified
-  '((t :inherit diff-changed :extend t))
+  '((t :inherit diff-changed))
   "TODO."
   :group 'projtree)
 
 (defface projtree-git-added
-  '((t :inherit diff-changed :extend t))
+  '((t :inherit diff-changed))
+  "TODO."
+  :group 'projtree)
+
+(defface projtree-git-renamed
+  '((t :inherit diff-changed :italic t))
   "TODO."
   :group 'projtree)
 
 (defface projtree-git-ignored
-  '((t :inherit dired-ignored :extend t))
+  '((t :inherit dired-ignored))
   "TODO."
   :group 'projtree)
 
 (defface projtree-git-untracked
-  '((t :inherit shadow :extend t))
+  '((t :inherit shadow))
   "TODO."
   :group 'projtree)
 
 (defface projtree-git-conflict
-  '((t :inherit error :extend t))
+  '((t :inherit error))
   "TODO."
   :group 'projtree)
 
