@@ -1,9 +1,5 @@
 ;;; projtree.el --- Display project directory tree of visited file  -*- lexical-binding: t -*-
 (require 'hierarchy)
-;; (require 'vc-git) ;; TODO remove
-;; (require 'projtree-git) ;; TODO load conditionally?
-(require 'projtree-profiling)
-
 
 
 (defface projtree-highlight
@@ -422,6 +418,9 @@ The currently visited project file (if any) is highlighted."
     (when (and projtree visited-file)
       (projtree->set-selected-path projtree visited-file))))
 
+
+(autoload 'projtree-profiling-enable "projtree-profiling")
+(autoload 'projtree-profiling-disable "projtree-profiling")
 
 ;;;###autoload
 (define-minor-mode projtree-mode
