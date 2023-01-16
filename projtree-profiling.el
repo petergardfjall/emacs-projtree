@@ -25,7 +25,7 @@
 
 ;;;###autoload
 (defun projtree-profiling-enable ()
-  (dolist (it projtree-profiling--timing-fn-alist)    
+  (dolist (it projtree-profiling--timing-fn-alist)
     (let ((fn (car it))
           (advice-fn (cdr it)))
       (message "advicing %s ..." fn)

@@ -1,6 +1,33 @@
 ;;; projtree.el --- Display project directory tree of visited file  -*- lexical-binding: t -*-
 (require 'hierarchy)
 
+(defcustom projtree-window-width 30
+  "The width in characters to use for the project tree buffer."
+  :type 'natnum
+  :group 'projtree)
+
+(defcustom projtree-window-placement 'left
+  "The placement of the project tree window."
+  :type '(choice (const :tag "Left-hand side" left)
+                 (const :tag "Right-hand side" right))
+  :group 'projtree)
+
+(defcustom projtree-buffer-name "*projtree*"
+  "The name to use for the project tree buffer."
+  :type 'string
+  :group 'projtree)
+
+(defcustom projtree-show-git-status t
+  "Whether to show git status for project tree files and folders."
+  :type 'boolean
+  :group 'projtree)
+
+(defcustom projtree-profiling-enabled t
+  "Whether to output performance profiling."
+  :type 'boolean
+  :group 'projtree)
+
+
 
 (defface projtree-highlight
   '((t :inherit highlight :extend t))
@@ -48,18 +75,12 @@
   "Face for highlighting files with unresolved conflicts in the project tree."
   :group 'projtree)
 
-(defvar projtree-report-git-status t
-  "If non-nil git status will be indicated for project tree files.")
-
 (defvar projtree-buffer-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "g")    'projtree-open)
     map)
   "Keybindings available in the project tree buffer.")
 
-;; TODO customizable project tree window width
-;; TODO customizable project tree location
-;; TODO variable for project tree buffer name.
 
 (cl-defstruct projtree-set
   "A collection of project trees (`projtree' instances).
@@ -186,7 +207,7 @@ If the requested `projtree' does not already exist it is created."
 (autoload 'projtree-git--status "projtree-git")
 
 (defun projtree->_git-statuses (self)
-  (if projtree-report-git-status
+  (if projtree-show-git-status
       (projtree-git--status (projtree->root self))
     nil))
 
@@ -361,13 +382,13 @@ The currently visited project file (if any) is highlighted."
 
 (defun projtree-close ()
   (interactive)
-  (let ((buf (get-buffer "*projtree*")))
+  (let ((buf (get-buffer projtree-buffer-name)))
     (when buf
       (kill-buffer buf))))
 
 (defun projtree--get-projtree-buffer ()
-  (let ((buf (get-buffer-create "*projtree*")))
-    (display-buffer-in-side-window buf '((side . left) (window-width . 30) (dedicated . t)))
+  (let ((buf (get-buffer-create projtree-buffer-name)))
+    (display-buffer-in-side-window buf `((side . ,projtree-window-placement) (window-width . ,projtree-window-width) (dedicated . t)))
     (let ((win (get-buffer-window buf)))
       ;; Make window dedicated to projtree buffer.
       (set-window-dedicated-p win t)
@@ -429,13 +450,15 @@ The currently visited project file (if any) is highlighted."
   :lighter nil ;; Do not display on mode-line.
   (if projtree-mode
       (progn
-        (projtree-profiling-enable)
+        (when projtree-profiling-enabled
+          (projtree-profiling-enable))
         (add-hook 'window-configuration-change-hook #'projtree--render-on-buffer-switch)
         (projtree--set-visited-buffer (current-buffer))
         (projtree-open))
     (remove-hook 'window-configuration-change-hook #'projtree--render-on-buffer-switch)
     (projtree-close)
-    (projtree-profiling-disable)))
+    (when projtree-profiling-enabled
+      (projtree-profiling-disable))))
 
 
 

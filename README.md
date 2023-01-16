@@ -61,7 +61,11 @@ After getting `projtree.el` onto your Emacs load-path just issue the
 
 Variables:
 
-- `projtree-report-git-status`:
+- `projtree-window-width`:
+- `projtree-window-placement`:
+- `projtree-show-git-status`:
+- `projtree-buffer-name`:
+- `projtree-profiling-enabled`:
 
 Faces:
 
