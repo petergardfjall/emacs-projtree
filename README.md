@@ -58,3 +58,19 @@ After getting `projtree.el` onto your Emacs load-path just issue the
 `M-x projtree-mode` command.
 
 ## Customization
+
+Variables:
+
+- `projtree-report-git-status`:
+
+Faces:
+
+- `projtree-highlight`
+- `projtree-dir`
+- `projtree-file`
+- `projtree-git-modified`
+- `projtree-git-added`
+- `projtree-git-renamed`
+- `projtree-git-ignored`
+- `projtree-git-untracked`
+- `projtree-git-conflict`

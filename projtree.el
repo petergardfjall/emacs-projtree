@@ -10,42 +10,42 @@
 
 (defface projtree-dir
   '((t :inherit dired-directory))
-  "TODO."
+  "Face for highlighting unmodified folders in the project tree."
   :group 'projtree)
 
 (defface projtree-file
   '((t :inherit default))
-  "TODO."
+  "Face for highlighting unmodified files in the project tree."
   :group 'projtree)
 
 (defface projtree-git-modified
   '((t :inherit diff-changed))
-  "TODO."
+  "Face for highlighting modified files and folders in the project tree."
   :group 'projtree)
 
 (defface projtree-git-added
   '((t :inherit diff-changed))
-  "TODO."
+  "Face for highlighting added files in the project tree."
   :group 'projtree)
 
 (defface projtree-git-renamed
   '((t :inherit diff-changed :italic t))
-  "TODO."
+  "Face for highlighting renamed files in the project tree."
   :group 'projtree)
 
 (defface projtree-git-ignored
   '((t :inherit dired-ignored))
-  "TODO."
+  "Face for highlighting ignored files in the project tree."
   :group 'projtree)
 
 (defface projtree-git-untracked
   '((t :inherit shadow))
-  "TODO."
+  "Face for highlighting untracked files in the project tree."
   :group 'projtree)
 
 (defface projtree-git-conflict
   '((t :inherit error))
-  "TODO."
+  "Face for highlighting files with unresolved conflicts in the project tree."
   :group 'projtree)
 
 (defvar projtree-report-git-status t
@@ -57,7 +57,8 @@
     map)
   "Keybindings available in the project tree buffer.")
 
-;; TODO customizable window width
+;; TODO customizable project tree window width
+;; TODO customizable project tree location
 ;; TODO variable for project tree buffer name.
 
 (cl-defstruct projtree-set
