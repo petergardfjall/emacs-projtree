@@ -78,3 +78,11 @@ Faces:
 - `projtree-git-ignored`
 - `projtree-git-untracked`
 - `projtree-git-conflict`
+
+## Keybindings
+
+The project tree buffer defines a local keymap `projtree-buffer-map`. Currently
+it comes with the following bindings:
+
+- `g`: refresh the project tree (`projtree-open`). Doing this will refresh the
+  git status when `projtree-show-git-status` is `t`.
