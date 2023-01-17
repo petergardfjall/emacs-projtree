@@ -414,7 +414,7 @@ The currently visited project file (if any) is highlighted."
 (defun projtree--file-visiting-buffer-p (buffer)
   "Return t for a BUFFER that is visiting an existing file, nil otherwise."
   (let ((buffer-file (buffer-file-name buffer)))
-    ;; Check both that the buffer visits a file and that the file exists.  For a
+    ;; Check both that the buffer visits a file and that the file exists. For a
     ;; newly created buffer, the file may not yet exist on the filesystem.
     (and buffer-file
          (file-exists-p buffer-file))))
@@ -422,15 +422,23 @@ The currently visited project file (if any) is highlighted."
 
 (defun projtree--render-on-buffer-switch ()
   "TODO."
-  ;; No need to re-render project tree if we're in the mini-buffer, in the
-  ;; project tree buffer, or any other buffer not visiting a file.
-  (let ((curr-buf (current-buffer)))
-    (when (projtree--file-visiting-buffer-p curr-buf)
-      (let ((prior-buffer projtree--visited-buffer))
-        (when (not (eq prior-buffer curr-buf))
-          (projtree--set-visited-buffer curr-buf)
-          (projtree--call-async #'projtree-open))))))
+  ;; No need to re-render project tree if the current buffer has not changed
+  ;; with this window change.
+  (unless (equal (current-buffer) (window-old-buffer))
+    (let ((curr-buf (current-buffer)))
+      ;; No need to re-render project tree if we're in a buffer not visiting a
+      ;; file (the mini-buffer, the project tree buffer, etc).
+      (when (projtree--file-visiting-buffer-p curr-buf)
+        (projtree--set-visited-buffer curr-buf)
+        ;; We want follow-mode when switching to a file buffer (and cursor has
+        ;; left project tree).
+        (projtree--forget-cursor)
+        (projtree--call-async #'projtree-open)))))
 
+
+(defun projtree--forget-cursor ()
+  (when-let ((projtree (projtree--current)))
+    (projtree->set-cursor projtree nil)))
 
 (defun projtree--set-visited-buffer (buffer)
   (setq projtree--visited-buffer buffer)
