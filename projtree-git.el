@@ -11,9 +11,24 @@ status porcelain format.  Note that up-to-date files do not have
 entries in the resulting hash table."
   (with-temp-buffer
     (setq-local default-directory root-dir)
-    (let ((buf (current-buffer))
+    (let* ((buf (current-buffer))
+           (statuses (make-hash-table :test 'equal))
+           (exit-code (call-process projtree-git--cmd nil buf nil "status" "--porcelain" "--untracked-files=normal" "--ignored=matching")))
+      (if (> exit-code 0)
+          (progn
+            (message "projtree: git status for %s gave non-zero exit code: %d" root-dir exit-code)
+            statuses)
+        (projtree-git--parse-git-status-output buf)))))
+
+
+(defun projtree-git--parse-git-status-output (buffer)
+  "Parse git status output from BUFFER and return a status hash table.
+BUFFER is assumed to hold git status in porcelain format and
+nothing else.  The status hash table keys are absolute file paths
+and values are status codes in the git status porcelain format."
+  (with-current-buffer buffer
+    (let ((root-dir default-directory)
           (statuses (make-hash-table :test 'equal)))
-      (call-process projtree-git--cmd nil buf nil "status" "--porcelain" "--untracked-files=normal" "--ignored=matching")
       (goto-char (point-min))
       (while (not (eobp))
         (let* ((line (buffer-substring (line-beginning-position) (line-end-position)))
