@@ -255,7 +255,11 @@ Overwrites any prior BUFFER content."
              (display-buffer-use-some-window opened-buf
                                            (list (cons 'inhibit-same-window t)))
              (switch-to-buffer opened-buf))))))
-       buffer)))
+     buffer)
+    ;; Change the project tree buffer title from "Item name" to "Project tree".
+    (with-current-buffer buffer
+      (setq-local tabulated-list-format (vector '("Project tree" 0 nil)))
+      (tabulated-list-init-header))))
 
 (defun projtree->_render-tree-entry (self path &optional git-statuses)
   (let* ((filename (file-name-nondirectory path))
