@@ -397,7 +397,9 @@ The currently visited project file (if any) is highlighted."
       ;; Make window dedicated to projtree buffer.
       (set-window-dedicated-p win t)
       ;; Make C-x 1 not close the window.
-      (set-window-parameter win 'no-delete-other-windows t))
+      (set-window-parameter win 'no-delete-other-windows t)
+      ;; Frame resizing should not affect the size of the project tree window.
+      (window-preserve-size win t t))
     buf))
 
 
