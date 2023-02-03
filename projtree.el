@@ -291,7 +291,8 @@ Overwrites any prior BUFFER content."
 (defun projtree--highlight-file (path buffer)
   "Highlight a certain PATH in BUFFER."
   (with-current-buffer buffer
-    (let ((selected-linum (cl-position path (mapcar #'car tabulated-list-entries) :test #'equal)))
+    ;; Note: be defensive (when-let). Visited path may have been deleted.
+    (when-let ((selected-linum (cl-position path (mapcar #'car tabulated-list-entries) :test #'equal)))
       (projtree--highlight-row (+ selected-linum 1) buffer))))
 
 (defun projtree--highlight-row (line-number buffer)
