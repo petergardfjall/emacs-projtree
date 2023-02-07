@@ -1,5 +1,6 @@
 ;;; projtree.el --- Display project directory tree of visited file  -*- lexical-binding: t -*-
 (require 'hierarchy)
+(require 'project)
 
 (defcustom projtree-window-width 30
   "The width in characters to use for the project tree buffer."
@@ -353,6 +354,10 @@ Will return nil if the visited file is not in a project structure."
   "Return the root project directory of BUFFER or nil if none is available."
   (with-current-buffer buffer
     (let* ((buffer-dir default-directory)
+           ;; Note: replace `project-find-functions' for the duration of the
+           ;; call to `project-current' to make it also recognize project roots
+           ;; in the `project-list-file'.
+           (project-find-functions (projtree--project-find-functions))
            (project (project-current nil buffer-dir)))
       (if project
           (project-root project)
@@ -454,6 +459,26 @@ The currently visited project file (if any) is highlighted."
         (visited-file (buffer-file-name buffer)))
     (when (and projtree visited-file)
       (projtree->set-selected-path projtree visited-file))))
+
+(defun projtree--try-project-list (dir)
+  "Find a project containing DIR from the `project-list-file'."
+  (catch :root
+    (dolist (it (project-known-project-roots))
+      (when (and (string-prefix-p it dir)
+                 (file-directory-p it))
+        (throw :root (cons 'transient it))))))
+
+(defun projtree--project-find-functions ()
+  "Return a wsp replacement for `project-find-functions'.
+
+It extends the built-in `project-find-functions' list (whose
+functions are called to find the project containing a given
+directory) which by default only finds projects that are
+version-controlled (through `project-try-vc').  We add a function
+to also look for project directories that are listed in the
+`project-list-file'.  When using this with `project-current' a
+projtree will be correctly rendered also for non-git projects."
+  (append '(projtree--try-project-list) project-find-functions))
 
 
 (autoload 'projtree-profiling-enable "projtree-profiling")
