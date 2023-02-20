@@ -84,5 +84,7 @@ Faces:
 The project tree buffer defines a local keymap `projtree-buffer-map`. Currently
 it comes with the following bindings:
 
+- `d`: opens a `dired` window for the parent directory of the file at point in
+  the project tree buffer.
 - `g`: refresh the project tree (`projtree-open`). Doing this will refresh the
   git status when `projtree-show-git-status` is `t`.

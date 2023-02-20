@@ -78,7 +78,9 @@
 
 (defvar projtree-buffer-map
   (let ((map (make-sparse-keymap)))
+    ;; Refreshes the project tree buffer.
     (define-key map (kbd "g")    'projtree-open)
+    (define-key map (kbd "d")    'projtree-dired)
     map)
   "Keybindings available in the project tree buffer.")
 
@@ -381,7 +383,6 @@ Will return nil if the visited file is not in a project structure."
       (list path))))
 
 
-
 (defun projtree-open ()
   "Open a buffer that displays a project tree rooted at the current project.
 The currently visited project file (if any) is highlighted."
@@ -390,11 +391,22 @@ The currently visited project file (if any) is highlighted."
     (when projtree
       (projtree->display projtree (projtree--get-projtree-buffer)))))
 
+
 (defun projtree-close ()
   (interactive)
   (let ((buf (get-buffer projtree-buffer-name)))
     (when buf
       (kill-buffer buf))))
+
+
+(defun projtree-dired ()
+  "Opens a `dired' window for the directory of file at point."
+  (interactive)
+  (with-current-buffer (projtree--get-projtree-buffer)
+    (when-let* ((selected (tabulated-list-get-id))
+                (parent-dir (file-name-directory selected)))
+      (dired-other-window parent-dir))))
+
 
 (defun projtree--get-projtree-buffer ()
   (let ((buf (get-buffer-create projtree-buffer-name)))
