@@ -402,10 +402,14 @@ The currently visited project file (if any) is highlighted."
 (defun projtree-dired ()
   "Opens a `dired' window for the directory of file at point."
   (interactive)
+  (require 'dired)
   (with-current-buffer (projtree--get-projtree-buffer)
     (when-let* ((selected (tabulated-list-get-id))
-                (parent-dir (file-name-directory selected)))
-      (dired-other-window parent-dir))))
+                (parent-dir (file-name-directory selected))
+                (dired-buf (dired parent-dir)))
+      ;; Place dired buffer point at the selected file.
+      (with-current-buffer dired-buf
+        (dired-goto-file selected)))))
 
 
 (defun projtree--get-projtree-buffer ()
