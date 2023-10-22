@@ -354,16 +354,21 @@ Will return nil if the visited file is not in a project structure."
 
 (defun projtree--project-root (buffer)
   "Return the root project directory of BUFFER or nil if none is available."
-  (with-current-buffer buffer
-    (let* ((buffer-dir default-directory)
-           ;; Note: replace `project-find-functions' for the duration of the
-           ;; call to `project-current' to make it also recognize project roots
-           ;; in the `project-list-file'.
-           (project-find-functions (projtree--project-find-functions))
-           (project (project-current nil buffer-dir)))
-      (if project
-          (project-root project)
-        nil))))
+  (when (buffer-live-p buffer)
+    (with-current-buffer buffer
+      (let* ((buf-file (buffer-file-name buffer))
+             ;; Note: for a non-file buffer (like `*scratch*') we consider its
+             ;; project tree root to be default-directory.
+             (buffer-dir (file-name-directory (or buf-file default-directory)))
+             ;; Note: replace `project-find-functions' for the duration of the
+             ;; call to `project-current' to make it also recognize project roots
+             ;; in the `project-list-file'.
+             (project-find-functions (projtree--project-find-functions))
+             (project (project-current nil buffer-dir)))
+        (message "looking for project root for buffer-dir: %s" buffer-dir)
+        (if project
+            (project-root project)
+          nil)))))
 
 
 (defun projtree--descendant-p (ancestor child)
@@ -448,20 +453,20 @@ The currently visited project file (if any) is highlighted."
          (file-exists-p buffer-file))))
 
 
-(defun projtree--render-on-buffer-switch ()
+(defun projtree--render-on-buffer-switch (frame)
   "TODO."
-  ;; No need to re-render project tree if the current buffer has not changed
-  ;; with this window change.
-  (unless (equal (current-buffer) (window-old-buffer))
-    (let ((curr-buf (current-buffer)))
-      ;; No need to re-render project tree if we're in a buffer not visiting a
-      ;; file (the mini-buffer, the project tree buffer, etc).
-      (when (projtree--file-visiting-buffer-p curr-buf)
-        (projtree--set-visited-buffer curr-buf)
-        ;; We want follow-mode when switching to a file buffer (and cursor has
-        ;; left project tree).
-        (projtree--forget-cursor)
-        (projtree--call-async #'projtree-open)))))
+  (let ((curr-buf (current-buffer)))
+    (message "window change to buffer '%s' at %s" curr-buf (current-time-string))
+    ;; No need to re-render project tree if we're in a buffer not visiting a
+    ;; file (the mini-buffer, the project tree buffer, etc).
+    (when (projtree--file-visiting-buffer-p curr-buf)
+      (projtree--set-visited-buffer curr-buf)
+      ;; We want follow-mode when switching to a file buffer (and cursor has
+      ;; left project tree).
+      (projtree--forget-cursor)
+      (projtree--call-async #'projtree-open))))
+;; )
+
 
 
 (defun projtree--forget-cursor ()
@@ -485,7 +490,7 @@ The currently visited project file (if any) is highlighted."
         (throw :root (cons 'transient it))))))
 
 (defun projtree--project-find-functions ()
-  "Return a wsp replacement for `project-find-functions'.
+  "Return a projtree replacement for `project-find-functions'.
 
 It extends the built-in `project-find-functions' list (whose
 functions are called to find the project containing a given
@@ -508,10 +513,10 @@ projtree will be correctly rendered also for non-git projects."
       (progn
         (when projtree-profiling-enabled
           (projtree-profiling-enable))
-        (add-hook 'window-configuration-change-hook #'projtree--render-on-buffer-switch)
+        (add-hook 'window-selection-change-functions #'projtree--render-on-buffer-switch)
         (projtree--set-visited-buffer (current-buffer))
         (projtree-open))
-    (remove-hook 'window-configuration-change-hook #'projtree--render-on-buffer-switch)
+    (remove-hook 'window-selection-change-functions #'projtree--render-on-buffer-switch)
     (projtree-close)
     (when projtree-profiling-enabled
       (projtree-profiling-disable))))
