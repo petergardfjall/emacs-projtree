@@ -87,7 +87,14 @@
 
 (cl-defstruct projtree-set
   "A collection of project trees (`projtree' instances).
-The project trees are identified by project root path."
+
+The project trees in the set are keyed on project root path.
+
+A global project tree set for the active Emacs session can be
+retrieved via a call to `projtree-active-set'.  When in
+`projtree-mode', opening a file in a project (identified by
+project.el) will add a project tree for that project to the
+active set."
   trees)
 
 (defun projtree-set--new ()
@@ -95,7 +102,7 @@ The project trees are identified by project root path."
   (make-projtree-set :trees (make-hash-table :test 'equal)))
 
 (defun projtree-set->get-projtree (self project-root)
-  "Get project tree from the projtree-table SELF for the given PROJECT-ROOT.
+  "Get a project tree from projtree-set SELF with a given PROJECT-ROOT.
 If the requested `projtree' does not already exist it is created."
   (let* ((trees (projtree-set-trees self))
          (tree (gethash project-root trees)))
@@ -106,9 +113,14 @@ If the requested `projtree' does not already exist it is created."
 
 
 (defvar projtree--active-set nil
-  "Holds the active `projtree-set'.")
+  "Holds the active `projtree-set' for the current Emacs session.
+
+It tracks all visited project trees.  When in `projtree-mode',
+opening a file in a project (identified by project.el) will add a
+project tree for that project to the active set.")
 
 (defun projtree-active-set ()
+  "Return the global projtree-set for the current Emacs session."
   (when (not projtree--active-set)
     (setq projtree--active-set (projtree-set--new)))
   projtree--active-set)
@@ -116,7 +128,23 @@ If the requested `projtree' does not already exist it is created."
 
 
 (cl-defstruct projtree
-  "TODO: description"
+  "Represents a file tree for a particular project.
+
+A project tree is rooted at a directory, the project root as
+determined by `project.el'.
+
+`projtree->display' renders a project tree as a browsable file
+explorer in a buffer using `hierarchy.el'.  The hierarchy can be
+browsed and directories can be expanded by clicking their nodes.
+
+To support moving around the tree and expanding nodes the project
+tree needs to track the cursor position in the tree as well as
+which directories and files are expanded in the hierarchy
+explorer.
+
+When in `projtree-mode', visiting a file under the project
+results in that file being marked as selected in the project tree and
+highlighed in the project tree buffer."
 
   ;; The root directory of the project tree.
   root
@@ -139,77 +167,98 @@ If the requested `projtree' does not already exist it is created."
                  :selected-path nil))
 
 (defun projtree->root (self)
+  "Return the root directory of project tree SELF."
   (projtree-root self))
 
 (defun projtree->cursor (self)
+  "Return the explorer buffer cursor position for project tree SELF."
   (projtree-cursor self))
 
 (defun projtree->set-cursor (self point)
+  "Set the explorer buffer cursor position for project tree SELF to POINT."
   (setf (projtree-cursor self) point))
 
 (defun projtree->selected-path (self)
+  "Return currently visited file in project tree SELF."
   (projtree-selected-path self))
 
 (defun projtree->set-selected-path (self path)
+  "Set PATH as currently visited file in project tree SELF."
   ;; TODO validate that path is below root
   (let ((path (projtree--abspath path)))
     (setf (projtree-selected-path self) path)))
 
 (defun projtree->expanded-p (self path)
+  "Indicate if path PATH is expanded in project tree SELF."
   (let ((path (projtree--abspath path)))
     (gethash path (projtree-expanded-paths self))))
 
 (defun projtree->expand-path (self path)
+  "Expand only path PATH (no ancestor directories) in project tree SELF."
   (let ((path (projtree--abspath path)))
     (puthash path t (projtree-expanded-paths self))))
 
 (defun projtree->expand-paths (self paths)
+  "Expand a list of PATHS in project tree SELF."
   (dolist (p paths)
     (projtree->expand-path self p)))
 
 (defun projtree->expand-to-root (self path)
+  "Expand path PATH including any ancestor directories in project tree SELF."
   (let* ((root (projtree->root self))
          (ancestors (projtree--ancestor-paths root path)))
     (projtree->expand-paths self ancestors)))
 
 (defun projtree->toggle-expand (self path)
+  "Toggle the expanded state for PATH in project tree SELF.
+
+Closing a directory path has the effect of not showing any paths
+below it."
   (let ((path (projtree--abspath path))
         (value (not (projtree->expanded-p self path))))
     (puthash path value (projtree-expanded-paths self))))
 
-;; TODO
 (defun projtree->display (self buffer)
-  "TODO,"
-  (message "Opening project %s ..." (projtree->root self))
-  (let ((start-time (current-time)))
-    ;; Change the default-directory of the project tree buffer to make git status
-    ;; execute in the right context.
+  "Render project tree SELF in buffer BUFFER.
+
+Renders a project tree as a browsable file explorer in a buffer
+using `hierarchy.el'.  The hierarchy can be browsed and
+directories can be expanded by clicking their nodes.  Any
+`selected-path' will be highlighted in the rendered tree."
+  ;; Change the default-directory of the project tree buffer to make git status
+  ;; execute in the right context.
+  (with-current-buffer buffer
+    (setq-local default-directory (projtree->root self)))
+  ;; Make sure path to visited file is unfolded in project tree.
+  ;; TODO buffer displaying selected-path may have been killed
+  (let ((selected-path (projtree->selected-path self)))
+    (when selected-path
+      (projtree->expand-to-root self selected-path)))
+  ;; Display project tree in project tree buffer.
+  (projtree->_display-tree self buffer)
+  ;; Highlight visited file in project tree buffer.
+  (projtree->_highlight-selected-path self buffer)
+  ;; Add extra project tree buffer key bindings on top of existing ones.
+  (with-current-buffer buffer
+    (use-local-map (make-composed-keymap projtree-buffer-map
+                                         (current-local-map))))
+  ;; Move cursor to saved position (if any).
+  (when (projtree->cursor self)
     (with-current-buffer buffer
-      (setq-local default-directory (projtree->root self)))
-    ;; Make sure path to visited file is unfolded in project tree.
-    (let ((selected-path (projtree->selected-path self)))
-      (when selected-path
-        (projtree->expand-to-root self selected-path)))
-    ;; Display project tree in project tree buffer.
-    (projtree->_display-tree self buffer)
-    ;; Highlight visited file in project tree buffer.
-    (projtree->_highlight-selected-path self buffer)
-    ;; Add extra project tree buffer key bindings on top of existing ones.
-    (with-current-buffer buffer
-      (use-local-map (make-composed-keymap projtree-buffer-map
-                                           (current-local-map))))
-    ;; Move cursor to saved position (if any).
-    (when (projtree->cursor self)
-      (with-current-buffer buffer
-        (set-window-point (get-buffer-window buffer) (projtree->cursor self))))
-    (with-current-buffer buffer
-      (setq-local mode-line-format (list "%e" mode-line-front-space "projtree: " (file-name-nondirectory (projtree->root self)))))
-    (message "Project opened in %.2fs." (float-time (time-subtract (current-time) start-time)))))
+      (set-window-point (get-buffer-window buffer) (projtree->cursor self))))
+  (with-current-buffer buffer
+    (setq-local mode-line-format (list "%e" mode-line-front-space "projtree: " (file-name-nondirectory (projtree->root self))))))
 
 
 (autoload 'projtree-git--status "projtree-git")
 
 (defun projtree->_git-statuses (self)
+  "Determine git statuses for the project tree SELF.
+
+The status is returned as a hash table where the keys are
+absolute file paths and values are status codes following the git
+status porcelain format.  Up-to-date files do not have entries in
+the resulting hash table."
   (if projtree-show-git-status
       (projtree-git--status (projtree->root self))
     nil))
@@ -217,6 +266,7 @@ If the requested `projtree' does not already exist it is created."
 ;; TODO If no git status is found for path, check to see if any ancestor
 ;; directory is ignored/untracked.
 (defun projtree->_git-status (self git-statuses path)
+  "Given GIT-STATUSES for project tree SELF, return status for a particular PATH."
   (let ((path-status (gethash path git-statuses))
         (root-dir (projtree->root self)))
     (if path-status
@@ -265,6 +315,10 @@ Overwrites any prior BUFFER content."
       (tabulated-list-init-header))))
 
 (defun projtree->_render-tree-entry (self path &optional git-statuses)
+  "Render a PATH in project tree SELF with given GIT-STATUSES.
+
+This renders one file entry in the file tree explorer, with git
+status used to set the appropriate face."
   (let* ((filename (file-name-nondirectory path))
          (is-dir (file-directory-p path))
          (git-status (when git-statuses (projtree->_git-status self git-statuses path)))
@@ -283,6 +337,7 @@ Overwrites any prior BUFFER content."
 (defvar projtree--hl-overlay nil)
 
 (defun projtree->_highlight-selected-path (self buffer)
+  "Highlight any currently selected-path in project tree SELF rendered in BUFFER."
   (let ((selected-path (projtree->selected-path self)))
     ;; First clear any old highlight overlay.
     (when projtree--hl-overlay
@@ -301,6 +356,7 @@ Overwrites any prior BUFFER content."
 (defun projtree--highlight-row (line-number buffer)
   "Highlight a certain LINE-NUMBER in BUFFER."
   (with-current-buffer buffer
+    ;; TODO goto-line unnecessarily outputs "Mark set".
     (goto-line line-number)
     (let* ((start (line-beginning-position))
            (end (line-end-position))
@@ -313,6 +369,7 @@ Overwrites any prior BUFFER content."
 
 
 (defun projtree->_expand-status-symbol (self path)
+  "Determine the expansion symbol to use for PATH in project tree SELF."
   (if (projtree->expanded-p self path)
       "-"
     "+"))
@@ -336,6 +393,7 @@ Overwrites any prior BUFFER content."
       nil)))
 
 (defun projtree->_build-hierarchy (self)
+  "Build the `hierarchy.el' tree structure for project tree SELF."
   (let* ((root-dir (projtree--abspath (projtree->root self))))
     ;; TODO maybe move to construction
     (projtree->expand-path self root-dir)
@@ -345,7 +403,7 @@ Overwrites any prior BUFFER content."
 
 
 (defun projtree--current ()
-  "Return the project tree rooted at the current/most recently visited file.
+  "Return the project tree rooted at the currently visited file.
 Will return nil if the visited file is not in a project structure."
   (let ((root (projtree--project-root (current-buffer))))
     (if root
@@ -371,12 +429,17 @@ Will return nil if the visited file is not in a project structure."
 
 
 (defun projtree--descendant-p (ancestor child)
+  "Indicate if CHILD is a descendant of ANCESTOR.
+
+For example, '/one/two/three.txt' is a descrendant of '/one'.
+"
   (let ((ancestor (projtree--abspath ancestor))
         (child (projtree--abspath child)))
     (string-prefix-p ancestor child)))
 
 
 (defun projtree--ancestor-paths (project path)
+  "Return all ancestor directories of PATH up and until PROJECT directory."
   (let ((project (projtree--abspath project))
         (path (projtree--abspath path)))
     (when (not (projtree--descendant-p project path))
@@ -397,6 +460,7 @@ The currently visited project file (if any) is highlighted."
 
 
 (defun projtree-close ()
+  "Closes the project tree buffer."
   (interactive)
   (let ((buf (get-buffer projtree-buffer-name)))
     (when buf
@@ -418,7 +482,7 @@ The currently visited project file (if any) is highlighted."
 
 (defun projtree--get-projtree-buffer ()
   "Return the buffer used to display the project tree.
-Create the buffer if does not already exist."
+Creates the buffer if it does not already exist."
   (let ((buf (get-buffer-create projtree-buffer-name)))
     (display-buffer-in-side-window buf `((side . ,projtree-window-placement) (window-width . ,projtree-window-width) (dedicated . t)))
     (let ((win (get-buffer-window buf)))
@@ -455,7 +519,9 @@ Create the buffer if does not already exist."
 
 
 (defun projtree--render-on-buffer-switch (frame)
-  "TODO."
+  "Render project tree in FRAME if current buffer is visiting a project tree file.
+
+Intended to be registered as a hook whenever the current buffer changes."
   (let ((curr-buf (current-buffer)))
     ;; No need to re-render project tree if we're in a buffer not visiting a
     ;; file (the mini-buffer, the project tree buffer, etc).
