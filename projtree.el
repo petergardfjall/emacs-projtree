@@ -347,7 +347,7 @@ Overwrites any prior BUFFER content."
 (defun projtree--current ()
   "Return the project tree rooted at the current/most recently visited file.
 Will return nil if the visited file is not in a project structure."
-  (let ((root (projtree--project-root projtree--visited-buffer)))
+  (let ((root (projtree--project-root (current-buffer))))
     (if root
         (projtree-set->get-projtree (projtree-active-set) root)
       nil)))
@@ -365,7 +365,6 @@ Will return nil if the visited file is not in a project structure."
              ;; in the `project-list-file'.
              (project-find-functions (projtree--project-find-functions))
              (project (project-current nil buffer-dir)))
-        (message "looking for project root for buffer-dir: %s" buffer-dir)
         (if project
             (project-root project)
           nil)))))
@@ -418,6 +417,8 @@ The currently visited project file (if any) is highlighted."
 
 
 (defun projtree--get-projtree-buffer ()
+  "Return the buffer used to display the project tree.
+Create the buffer if does not already exist."
   (let ((buf (get-buffer-create projtree-buffer-name)))
     (display-buffer-in-side-window buf `((side . ,projtree-window-placement) (window-width . ,projtree-window-width) (dedicated . t)))
     (let ((win (get-buffer-window buf)))
@@ -427,6 +428,10 @@ The currently visited project file (if any) is highlighted."
       (set-window-parameter win 'no-delete-other-windows t)
       ;; Frame resizing should not affect the size of the project tree window.
       (window-preserve-size win t t))
+    ;; Set the project tree title.
+    (with-current-buffer buf
+      (setq-local tabulated-list-format (vector '("Project tree" 0 nil)))
+      (tabulated-list-init-header))
     buf))
 
 
@@ -438,10 +443,6 @@ The currently visited project file (if any) is highlighted."
 (defun projtree--call-async (fn)
   "Call function FN asynchronously."
   (run-with-idle-timer 0 nil fn))
-
-
-(defvar projtree--visited-buffer nil
-  "Tracks the currently visited buffer in `projtree-mode'.")
 
 
 (defun projtree--file-visiting-buffer-p (buffer)
@@ -456,30 +457,23 @@ The currently visited project file (if any) is highlighted."
 (defun projtree--render-on-buffer-switch (frame)
   "TODO."
   (let ((curr-buf (current-buffer)))
-    (message "window change to buffer '%s' at %s" curr-buf (current-time-string))
     ;; No need to re-render project tree if we're in a buffer not visiting a
     ;; file (the mini-buffer, the project tree buffer, etc).
     (when (projtree--file-visiting-buffer-p curr-buf)
-      (projtree--set-visited-buffer curr-buf)
-      ;; We want follow-mode when switching to a file buffer (and cursor has
-      ;; left project tree).
-      (projtree--forget-cursor)
-      (projtree--call-async #'projtree-open))))
-;; )
-
+      (let ((projtree (projtree--current))
+            (visited-file (buffer-file-name curr-buf)))
+        ;; Mark path selected in current project tree.
+        (projtree->set-selected-path projtree visited-file)
+        ;; We want follow-mode when switching to a file buffer (and cursor has
+        ;; left project tree).
+        (projtree--forget-cursor)
+        (projtree--call-async #'projtree-open)))))
 
 
 (defun projtree--forget-cursor ()
   (when-let ((projtree (projtree--current)))
     (projtree->set-cursor projtree nil)))
 
-(defun projtree--set-visited-buffer (buffer)
-  (setq projtree--visited-buffer buffer)
-  ;; Also mark path as selected in current project tree.
-  (let ((projtree (projtree--current))
-        (visited-file (buffer-file-name buffer)))
-    (when (and projtree visited-file)
-      (projtree->set-selected-path projtree visited-file))))
 
 (defun projtree--try-project-list (dir)
   "Find a project containing DIR from the `project-list-file'."
@@ -514,8 +508,11 @@ projtree will be correctly rendered also for non-git projects."
         (when projtree-profiling-enabled
           (projtree-profiling-enable))
         (add-hook 'window-selection-change-functions #'projtree--render-on-buffer-switch)
-        (projtree--set-visited-buffer (current-buffer))
-        (projtree-open))
+        ;; Create the project tree buffer.
+        (projtree--get-projtree-buffer)
+        ;; When we activate the mode we call the switch buffer hook to render
+        ;; the tree.
+        (projtree--render-on-buffer-switch nil))
     (remove-hook 'window-selection-change-functions #'projtree--render-on-buffer-switch)
     (projtree-close)
     (when projtree-profiling-enabled
