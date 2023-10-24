@@ -356,8 +356,7 @@ status used to set the appropriate face."
 (defun projtree--highlight-row (line-number buffer)
   "Highlight a certain LINE-NUMBER in BUFFER."
   (with-current-buffer buffer
-    ;; TODO goto-line unnecessarily outputs "Mark set".
-    (goto-line line-number)
+    (projtree--goto-line line-number)
     (let* ((start (line-beginning-position))
            (end (line-end-position))
            (hl-overlay (make-overlay start (+ 1 end))))
@@ -548,6 +547,13 @@ Intended to be registered as a hook whenever the current buffer changes."
       (when (and (string-prefix-p it dir)
                  (file-directory-p it))
         (throw :root (cons 'transient it))))))
+
+
+(defun projtree--goto-line (line-num)
+  "Move point to the beginning of line LINE-NUM in the current buffer."
+  (goto-char (point-min))
+  (forward-line (1- line-num)))
+
 
 (defun projtree--project-find-functions ()
   "Return a projtree replacement for `project-find-functions'.
