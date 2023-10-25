@@ -402,12 +402,16 @@ status used to set the appropriate face."
 
 
 (defun projtree--current ()
-  "Return the project tree rooted at the currently visited file.
+  "Return the project tree rooted at the most recently visited file.
 Will return nil if the visited file is not in a project structure."
-  (let ((root (projtree--project-root (current-buffer))))
-    (if root
-        (projtree-set->get-projtree (projtree-active-set) root)
-      nil)))
+  ;; We look at the last file-visiting buffer that was open when determining the
+  ;; current project tree. We could for example be in the project tree buffer
+  ;; (for example, pressing 'g') and we then don't want the project tree of that
+  ;; buffer.
+  (when-let* ((last-file-buffer (cl-find-if (lambda (buf) (buffer-file-name buf)) (buffer-list)))
+              (root (projtree--project-root last-file-buffer)))
+    (projtree-set->get-projtree (projtree-active-set) root)))
+
 
 (defun projtree--project-root (buffer)
   "Return the root project directory of BUFFER or nil if none is available."
