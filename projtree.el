@@ -521,8 +521,8 @@ Creates the buffer if it does not already exist."
          (file-exists-p buffer-file))))
 
 
-(defun projtree--render-on-buffer-switch (frame)
-  "Render project tree in FRAME if current buffer is visiting a project tree file.
+(defun projtree--render-on-buffer-switch ()
+  "Render project tree in if current buffer is visiting a project tree file.
 
 Intended to be registered as a hook whenever the current buffer changes."
   (let ((curr-buf (current-buffer)))
@@ -583,13 +583,13 @@ projtree will be correctly rendered also for non-git projects."
       (progn
         (when projtree-profiling-enabled
           (projtree-profiling-enable))
-        (add-hook 'window-selection-change-functions #'projtree--render-on-buffer-switch)
+        (add-hook 'buffer-list-update-hook #'projtree--render-on-buffer-switch)
         ;; Create the project tree buffer.
         (projtree--get-projtree-buffer)
         ;; When we activate the mode we call the switch buffer hook to render
         ;; the tree.
-        (projtree--render-on-buffer-switch nil))
-    (remove-hook 'window-selection-change-functions #'projtree--render-on-buffer-switch)
+        (projtree--render-on-buffer-switch))
+    (remove-hook 'buffer-list-update-hook #'projtree--render-on-buffer-switch)
     (projtree-close)
     (when projtree-profiling-enabled
       (projtree-profiling-disable))))
