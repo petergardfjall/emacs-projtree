@@ -529,8 +529,10 @@ Intended to be registered as a hook whenever the current buffer changes."
     ;; No need to re-render project tree if we're in a buffer not visiting a
     ;; file (the mini-buffer, the project tree buffer, etc).
     (when (projtree--file-visiting-buffer-p curr-buf)
-      (let ((projtree (projtree--current))
-            (visited-file (buffer-file-name curr-buf)))
+      ;; Note: if the buffer is not visiting a project file we ignore trying to
+      ;; render the project tree.
+      (when-let* ((projtree (projtree--current))
+                  (visited-file (buffer-file-name curr-buf)))
         ;; Mark path selected in current project tree.
         (projtree->set-selected-path projtree visited-file)
         ;; We want follow-mode when switching to a file buffer (and cursor has
