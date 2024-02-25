@@ -3,7 +3,7 @@
 ;; Copyright © 2023 Peter Gardfjäll <peter.gardfjall.work@gmail.com>
 ;;
 ;; Author: Peter Gardfjäll <peter.gardfjall.work@gmail.com>
-;; URL: https://github.com/petergardfjall/emacs-postrace
+;; URL: https://github.com/petergardfjall/emacs-projtree
 ;; Keywords: workspace, project
 ;; Package-Requires: ((emacs "27.0"))
 ;; Version: 0.0.1
