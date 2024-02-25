@@ -1,4 +1,38 @@
 ;;; projtree.el --- Display project directory tree of visited file  -*- lexical-binding: t -*-
+;;
+;; Copyright © 2023 Peter Gardfjäll <peter.gardfjall.work@gmail.com>
+;;
+;; Author: Peter Gardfjäll <peter.gardfjall.work@gmail.com>
+;; URL: https://github.com/petergardfjall/emacs-postrace
+;; Keywords: workspace, project
+;; Package-Requires: ((emacs "27.0"))
+;; Version: 0.0.1
+;; Homepage: https://github.com/petergardfjall/emacs-projtree
+;;
+;;
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+;;
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+;;
+;;
+;;; Commentary:
+;;
+;; `projtree-mode' is an Emacs minor mode that shows a file explorer for the
+;; currently visited file in a side window with a `*projtree*' buffer.  The
+;; project of the visited file is determined by `project.el'.  `projtree-mode'
+;; follows the active buffer, meaning that it always displays the file tree
+;; rooted at the directory root folder of the currently visited file.
+;;
+;;; Code:
 (require 'hierarchy)
 (require 'project)
 (require 'vc-git)
