@@ -16,7 +16,7 @@ entries in the resulting hash table."
            (exit-code (call-process projtree-git--cmd nil buf nil "status" "--porcelain" "--untracked-files=normal" "--ignored=matching")))
       (if (> exit-code 0)
           (progn
-            (message "projtree: git status for %s gave non-zero exit code: %d" root-dir exit-code)
+            (message "projtree-git: git status for %s gave non-zero exit code: %d" root-dir exit-code)
             statuses)
         (projtree-git--parse-git-status-output buf)))))
 
