@@ -476,8 +476,7 @@ Will return nil if the visited file is not in a project structure."
 (defun projtree--descendant-p (ancestor child)
   "Indicate if CHILD is a descendant of ANCESTOR.
 
-For example, '/one/two/three.txt' is a descrendant of '/one'.
-"
+For example, '/one/two/three.txt' is a descrendant of '/one'."
   (let ((ancestor (projtree--abspath ancestor))
         (child (projtree--abspath child)))
     (string-prefix-p ancestor child)))
@@ -584,6 +583,7 @@ Intended to be registered as a hook whenever the current buffer changes."
 
 
 (defun projtree--forget-cursor ()
+  "Reset the `*projtree*' buffer cursor of the currently active project tree."
   (when-let ((projtree (projtree--current)))
     (projtree->set-cursor projtree nil)))
 
