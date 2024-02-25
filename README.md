@@ -10,7 +10,7 @@ currently visited file.
 [treemacs](https://github.com/Alexander-Miller/treemacs/) but smaller in scope.
 
 It builds on standard Emacs and relies on `hierarchy.el` to render the tree. For
-git status highlighting, the `git` command to be present on the system.
+git status highlighting, the `git` command must be present on the system.
 
 ## Features
 
@@ -19,14 +19,9 @@ git status highlighting, the `git` command to be present on the system.
 - The git status of files/directories is highlighted in the tree.
 - Files can be opened from the project tree.
 
-- `postrace-push`: pushes the buffer position (marker) at point to the position
-  stack.
+## Screenshot
 
-TODO
-
-## Screenshots
-
-![TODO](screenshots/TODO.gif)
+![screenshot](img/screenshot.png)
 
 ## Install
 
@@ -61,23 +56,34 @@ After getting `projtree.el` onto your Emacs load-path just issue the
 
 Variables:
 
-- `projtree-window-width`:
-- `projtree-window-placement`:
-- `projtree-show-git-status`:
-- `projtree-buffer-name`:
-- `projtree-profiling-enabled`:
+- `projtree-window-width`: Initial width (in characters) to use for the project
+  tree buffer (the window size can be adjusted at any time).
+- `projtree-window-placement`: The placement of the project tree window: `'left`
+  or `'right`. Default: `'left`.
+- `projtree-show-git-status`: Whether to show git status for project tree files
+  and folders. Default: `t`.
+- `projtree-buffer-name`: The name to use for the project tree buffer. Default:
+  `*projtree*`.
+- `projtree-profiling-enabled`: Whether to output performance profiling.
+  Default: `nil`.
 
 Faces:
 
-- `projtree-highlight`
-- `projtree-dir`
-- `projtree-file`
-- `projtree-git-modified`
-- `projtree-git-added`
-- `projtree-git-renamed`
-- `projtree-git-ignored`
-- `projtree-git-untracked`
-- `projtree-git-conflict`
+- `projtree-highlight`: Face for highlighting the visited file in the project
+  tree.
+- `projtree-dir`: Face for highlighting unmodified folders in the project tree.
+- `projtree-file`: Face for highlighting unmodified files in the project tree.
+- `projtree-git-modified`: Face for highlighting modified files and folders in
+  the project tree.
+- `projtree-git-added`: Face for highlighting added files in the project tree.
+- `projtree-git-renamed`: Face for highlighting renamed files in the project
+  tree.
+- `projtree-git-ignored`: Face for highlighting ignored files in the project
+  tree.
+- `projtree-git-untracked`: Face for highlighting untracked files in the project
+  tree.
+- `projtree-git-conflict`: Face for highlighting files with unresolved conflicts
+  in the project tree.
 
 ## Keybindings
 
