@@ -1,6 +1,7 @@
 ;;; projtree.el --- Display project directory tree of visited file  -*- lexical-binding: t -*-
 (require 'hierarchy)
 (require 'project)
+(require 'vc-git)
 
 (defcustom projtree-window-width 30
   "The width in characters to use for the project tree buffer."
@@ -254,19 +255,24 @@ directories can be expanded by clicking their nodes.  Any
 
 (autoload 'projtree-git--status "projtree-git")
 
+(defun projtree->git-project-p (self)
+  "Indicate if the project tree SELF is a git project."
+  (vc-git-root (projtree->root self)))
+
 (defun projtree->_git-statuses (self)
   "Determine git statuses for the project tree SELF.
 
 The status is returned as a hash table where the keys are
 absolute file paths and values are status codes following the git
 status porcelain format.  Up-to-date files do not have entries in
-the resulting hash table."
-  (if projtree-show-git-status
+the resulting hash table.
+
+If `projtree-show-git-status' is non-nil or SELF is not a git
+project nil is returned."
+  (if (and projtree-show-git-status (projtree->git-project-p self))
       (projtree-git--status (projtree->root self))
     nil))
 
-;; TODO If no git status is found for path, check to see if any ancestor
-;; directory is ignored/untracked.
 (defun projtree->_git-status (self git-statuses path)
   "Given GIT-STATUSES for project tree SELF, return status for a particular PATH."
   (let ((path-status (gethash path git-statuses))
