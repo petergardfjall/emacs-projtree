@@ -131,7 +131,9 @@ project tree for that project to the active set.")
   "Represents a file tree for a particular project.
 
 A project tree is rooted at a directory, the project root as
-determined by `project.el'.
+determined by `project.el'.  The project root is typically a VCS
+root directory, but non-VCS projects listed in
+`project-list-file' are also treated as project roots.
 
 `projtree->display' renders a project tree as a browsable file
 explorer in a buffer using `hierarchy.el'.  The hierarchy can be
