@@ -47,7 +47,8 @@
   `((projtree->display . ,(projtree-profiling--new-fn-timer "projtree->display"))
     (projtree->_display-tree . ,(projtree-profiling--new-fn-timer "projtree->_display-tree"))
     (projtree->_highlight-selected-path . ,(projtree-profiling--new-fn-timer "projtree->_highlight-selected-path"))
-    (projtree-git--status . ,(projtree-profiling--new-fn-timer "projtree-git--status"))))
+    (projtree-git--status . ,(projtree-profiling--new-fn-timer "projtree-git--status"))
+    (projtree-git--parse-git-status-output . ,(projtree-profiling--new-fn-timer "projtree-git--parse-git-status-output"))))
 
 ;;;###autoload
 (defun projtree-profiling-toggle ()
