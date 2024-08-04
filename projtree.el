@@ -568,12 +568,14 @@ Intended to be registered as a hook whenever the current buffer changes."
       ;; render the project tree.
       (when-let* ((projtree (projtree--current))
                   (visited-file (buffer-file-name curr-buf)))
-        ;; Mark path selected in current project tree.
-        (projtree->set-selected-path projtree visited-file)
-        ;; We want follow-mode when switching to a file buffer (and cursor has
-        ;; left project tree).
-        (projtree--forget-cursor)
-        (projtree--call-async #'projtree-open)))))
+         ;; Only re-render the tree if the visited file changed.
+        (unless (eq visited-file (projtree->selected-path projtree))
+           ;; Mark path selected in current project tree.
+          (projtree->set-selected-path projtree visited-file)
+          ;; We want follow-mode when switching to a file buffer (and cursor has
+          ;; left project tree).
+          (projtree--forget-cursor)
+          (projtree--call-async #'projtree-open))))))
 
 
 (defun projtree--forget-cursor ()
