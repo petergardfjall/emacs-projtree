@@ -53,14 +53,13 @@ entries in the resulting hash table."
             statuses)
         (projtree-git--parse-git-status-output buf)))))
 
-
 (defun projtree-git--parse-git-status-output (buffer)
   "Parse git status output from BUFFER and return a status hash table.
 BUFFER is assumed to hold git status in porcelain format and
 nothing else.  The status hash table keys are absolute file paths
 and values are status codes in the git status porcelain format."
   (with-current-buffer buffer
-    (let ((root-dir default-directory)
+    (let ((git-root default-directory)
           (statuses (make-hash-table :test 'equal)))
       (goto-char (point-min))
       (while (not (eobp))
@@ -73,15 +72,25 @@ and values are status codes in the git status porcelain format."
                (path (projtree--abspath (expand-file-name file))))
           (puthash path status statuses)
           ;; Mark modification states for any ancestor directories.
-          (dolist (ancestor (butlast (projtree--ancestor-paths root-dir path)))
-            (pcase (string-to-char status)
-              (?M (puthash ancestor "M" statuses))
-              (?A (puthash ancestor "M" statuses))
-              (?D (puthash ancestor "M" statuses))
-              (?U (puthash ancestor "U" statuses))))
+          (projtree-git--mark-ancestor-status statuses git-root path status)
           ;; Next line of output.
           (forward-line 1)))
       statuses)))
+
+(defun projtree-git--mark-ancestor-status (statuses git-root path status)
+  "Add modification STATUS for parent directories of PATH under GIT-ROOT.
+The ancestor directories' statuses are added to the STATUSES hash table."
+  (let ((parent-dir (string-trim-right (file-name-directory path) "/")))
+    (when (and
+           (projtree--descendant-p git-root parent-dir)
+           (not (gethash parent-dir statuses)))
+      (pcase (string-to-char status)
+        (?M (puthash parent-dir "M" statuses))
+        (?A (puthash parent-dir "M" statuses))
+        (?D (puthash parent-dir "M" statuses))
+        (?U (puthash parent-dir "U" statuses)))
+      ;; move further up directory tree ...
+      (projtree-git--mark-ancestor-status statuses git-root parent-dir status))))
 
 (defun projtree-git--status-face (code)
   "Return the face corresponding to the given git status CODE.
