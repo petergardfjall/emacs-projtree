@@ -537,6 +537,11 @@ Creates the buffer if it does not already exist."
     buf))
 
 
+(defun projtree--rendered-tree-root ()
+  "Return the root directory of the project tree currently rendered in the project tree buffer."
+  (buffer-local-value 'default-directory (get-buffer-create projtree-buffer-name)))
+
+
 (defun projtree--abspath (path)
   "Return a normalized PATH (absolute and no trailing slash)."
   (string-trim-right (expand-file-name path) "/"))
@@ -568,8 +573,11 @@ Intended to be registered as a hook whenever the current buffer changes."
       ;; render the project tree.
       (when-let* ((projtree (projtree--current))
                   (visited-file (buffer-file-name curr-buf)))
-         ;; Only re-render the tree if the visited file changed.
-        (unless (eq visited-file (projtree->selected-path projtree))
+         ;; Only re-render the tree if the project root or visited file changed.
+        (unless
+            (and
+             (eq (projtree--rendered-tree-root) (projtree->root projtree))
+             (eq visited-file (projtree->selected-path projtree)))
            ;; Mark path selected in current project tree.
           (projtree->set-selected-path projtree visited-file)
           ;; We want follow-mode when switching to a file buffer (and cursor has
