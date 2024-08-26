@@ -547,9 +547,24 @@ Creates the buffer if it does not already exist."
   (string-trim-right (expand-file-name path) "/"))
 
 
-(defun projtree--call-async (fn)
-  "Call function FN asynchronously."
-  (run-with-idle-timer 0 nil fn))
+(defvar projtree--scheduled-render-timer nil
+  "Holds a timer for the next scheduled projtree--open-async call.")
+
+(defun projtree--open-async ()
+  "Schedules a `projtree-open' call to render the project tree in its buffer.
+
+The rendering is scheduled to happen after a short time of editor
+idleness.  If a render call is already scheduled it is cancelled
+and replaced by the current call.
+
+Replacing an already scheduled call has the benefit of not
+freezing up the editor if many files are opened in very quick
+succession, such as when restoring a desktop via `desktop-read'."
+  ;; Replace any already scheduled render operation with this one.
+  (when projtree--scheduled-render-timer
+    (cancel-timer projtree--scheduled-render-timer))
+  (setq projtree--scheduled-render-timer
+        (run-with-idle-timer 0.050 nil #'projtree-open)))
 
 
 (defun projtree--file-visiting-buffer-p (buffer)
@@ -583,7 +598,7 @@ Intended to be registered as a hook whenever the current buffer changes."
           ;; We want follow-mode when switching to a file buffer (and cursor has
           ;; left project tree).
           (projtree--forget-cursor)
-          (projtree--call-async #'projtree-open))))))
+          (projtree--open-async))))))
 
 
 (defun projtree--forget-cursor ()
