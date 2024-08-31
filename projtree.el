@@ -64,15 +64,13 @@
   :group 'projtree)
 
 
-
 (defface projtree-highlight
   '((t :inherit highlight :extend t))
   "Face for highlighting the visited file in the project tree."
   :group 'projtree)
 
-
 (defface projtree-dir
-  '((t :inherit dired-directory))
+  '((t :inherit font-lock-function-name-face))
   "Face for highlighting unmodified folders in the project tree."
   :group 'projtree)
 
@@ -82,22 +80,22 @@
   :group 'projtree)
 
 (defface projtree-git-modified
-  '((t :inherit diff-changed))
+  '((t :inherit diff-refine-changed))
   "Face for highlighting modified files and folders in the project tree."
   :group 'projtree)
 
 (defface projtree-git-added
-  '((t :inherit diff-changed))
+  '((t :inherit diff-refine-added))
   "Face for highlighting added files in the project tree."
   :group 'projtree)
 
 (defface projtree-git-renamed
-  '((t :inherit diff-changed :italic t))
+  '((t :inherit diff-removed))
   "Face for highlighting renamed files in the project tree."
   :group 'projtree)
 
 (defface projtree-git-ignored
-  '((t :inherit dired-ignored))
+  '((t :inherit completions-group-separator))
   "Face for highlighting ignored files in the project tree."
   :group 'projtree)
 
@@ -110,6 +108,7 @@
   '((t :inherit error))
   "Face for highlighting files with unresolved conflicts in the project tree."
   :group 'projtree)
+
 
 (defvar projtree-buffer-map
   (let ((map (make-sparse-keymap)))
