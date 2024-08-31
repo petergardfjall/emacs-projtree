@@ -6,7 +6,7 @@
 ;; URL: https://github.com/petergardfjall/emacs-projtree
 ;; Keywords: workspace, project
 ;; Package-Requires: ((emacs "27.0"))
-;; Version: 0.0.1
+;; Version: 0.0.2
 ;; Homepage: https://github.com/petergardfjall/emacs-projtree
 ;;
 ;;
