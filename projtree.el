@@ -391,7 +391,7 @@ status used to set the appropriate face."
   "Highlight a certain PATH in BUFFER."
   (with-current-buffer buffer
     ;; Note: be defensive (when-let). Visited path may have been deleted.
-    (when-let ((selected-linum (cl-position path (mapcar #'car tabulated-list-entries) :test #'equal)))
+    (when-let* ((selected-linum (cl-position path (mapcar #'car tabulated-list-entries) :test #'equal)))
       (projtree--highlight-row (+ selected-linum 1) buffer))))
 
 (defun projtree--highlight-row (line-number buffer)
@@ -602,7 +602,7 @@ Intended to be registered as a hook whenever the current buffer changes."
 
 (defun projtree--forget-cursor ()
   "Reset the `*projtree*' buffer cursor of the currently active project tree."
-  (when-let ((projtree (projtree--current)))
+  (when-let* ((projtree (projtree--current)))
     (projtree->set-cursor projtree nil)))
 
 
