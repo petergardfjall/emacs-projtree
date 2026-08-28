@@ -455,12 +455,13 @@ Will return nil if the visited file is not in a project structure."
       (let* ((buf-file (buffer-file-name buffer))
              ;; Note: for a non-file buffer (like `*scratch*') we consider its
              ;; project tree root to be default-directory.
-             (buffer-dir (file-name-directory (or buf-file default-directory)))
+             (buffer-dir (file-name-directory buf-file))
              ;; Note: replace `project-find-functions' for the duration of the
              ;; call to `project-current' to make it also recognize project roots
              ;; in the `project-list-file'.
              (project-find-functions (projtree--project-find-functions))
-             (project (project-current nil buffer-dir)))
+             ;; TODO: Why do we need to strip trailing slash from `buffer-dir'?
+             (project (project-current nil (string-trim-right buffer-dir "/"))))
         (if project
             (project-root project)
           nil)))))
